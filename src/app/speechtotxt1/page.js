@@ -1,198 +1,102 @@
-'use client';
-
-import { useEffect, useRef, useState } from 'react';
+"use client";
+import React, { useEffect, useRef, useState, useCallback } from "react";
+import CircleAnimation from "../chat_avatar/CircleAnimation";
 import { createClient, LiveTranscriptionEvents } from '@deepgram/sdk';
-import SiriAnimation from '../chat_avatar/line_animation';
 
-export default function LiveTranscription() {
-  const [transcript, setTranscript] = useState('');
-  const [currentUtterance, setCurrentUtterance] = useState('');
+function HomePage() {
+  // State variables
   const [conversation, setConversation] = useState([]);
-  const [error, setError] = useState('');
+  const [currentUtterance, setCurrentUtterance] = useState("");
   const [isTranscribing, setIsTranscribing] = useState(false);
-  const [silence, setSilence] = useState(false);
+  const [error, setError] = useState('');
+  const [transcript, setTranscript] = useState('');
+  const [silence, setSilence] = useState(true);
   const [isBotSpeaking, setIsBotSpeaking] = useState(false);
+  const [ttsQueue, setTtsQueue] = useState([]);
+  const [currentTTSAudio, setCurrentTTSAudio] = useState(null);
 
+  // Refs
+  const convoEndRef = useRef(null);
+  const currentUtteranceRef = useRef("");
+  const connectionRef = useRef(null);
   const socketRef = useRef(null);
   const mediaRecorderRef = useRef(null);
-  const connectionRef = useRef(null);
   const streamRef = useRef(null);
   const silenceTimeoutRef = useRef(null);
-  const currentUtteranceRef = useRef('');
+  const shouldKeepMicActiveRef = useRef(false);
   const isClosingRef = useRef(false);
-  const convoEndRef = useRef(null);
-  const shouldKeepMicActiveRef = useRef(false); // NEW: Track if mic should stay active
+  const ttsProcessingRef = useRef(false);
 
-  // TTS playback refs
-  const audioRef = useRef(null);
-  const lastUrlRef = useRef(null);
-  const ttsQueueRef = useRef([]);
-  const speakingRef = useRef(false);
-  const ttsAbortControllersRef = useRef(new Set());
-
-  const TTS_PLAYBACK_RATE = 1.15;
-
-  // Mute/unmute mic while bot speaks
-  const beginBotSpeaking = () => {
-    console.log('🤖 Bot speaking: starting playback. Disabling mic.');
-    setIsBotSpeaking(true);
-    try {
-      if (silenceTimeoutRef.current) {
-        clearTimeout(silenceTimeoutRef.current);
-        silenceTimeoutRef.current = null;
+  // TTS Functions
+  const stopAudio = useCallback(() => {
+    if (currentTTSAudio) {
+      try {
+        currentTTSAudio.pause();
+        currentTTSAudio.currentTime = 0;
+      } catch (err) {
+        console.warn('Error stopping audio:', err);
       }
-    } catch {}
-    setSilence(true);
-
-    // Pause recorder (do not stop) and disable tracks (do not stop)
-    try {
-      const mr = mediaRecorderRef.current;
-      if (mr && mr.state === 'recording' && typeof mr.pause === 'function') {
-        mr.pause();
-        console.log('🎙️ Mic paused (MediaRecorder paused).');
-      }
-    } catch (e) {
-      console.warn('Failed to pause MediaRecorder:', e);
+      setCurrentTTSAudio(null);
     }
-    try {
-      const tracks = streamRef.current?.getTracks?.() || [];
-      tracks.forEach((t) => (t.enabled = false));
-      if (tracks.length) console.log('🎙️ Mic disabled (tracks disabled).');
-    } catch (e) {
-      console.warn('Failed to disable mic tracks:', e);
-    }
-  };
-
-  // Enable mic only if TTS is idle (prevents capturing bot greeting)
-  const enableMicIfSafe = () => {
-    if (speakingRef.current || ttsQueueRef.current.length > 0) {
-      console.log('🔒 Mic stays disabled (bot speaking or TTS queued).');
-      return;
-    }
-    try {
-      const tracks = streamRef.current?.getTracks?.() || [];
-      tracks.forEach((t) => (t.enabled = true));
-      if (tracks.length) console.log('🎙️ Mic enabled (tracks enabled).');
-    } catch (e) {
-      console.warn('Failed to enable mic tracks:', e);
-    }
-    try {
-      const mr = mediaRecorderRef.current;
-      if (mr && mr.state === 'paused' && typeof mr.resume === 'function') {
-        mr.resume();
-        console.log('🎙️ Mic resumed (MediaRecorder resumed).');
-      }
-    } catch (e) {
-      console.warn('Failed to resume MediaRecorder:', e);
-    }
-    setSilence(false);
-  };
-
-  const endBotSpeaking = () => {
     setIsBotSpeaking(false);
-    console.log('✅ Bot speech completed.');
-    // Re-enable mic if no more TTS is pending
-    enableMicIfSafe();
-  };
+    setTtsQueue([]);
+    ttsProcessingRef.current = false;
+  }, [currentTTSAudio]);
 
-  // TTS helpers
-  const stopAudio = () => {
+  const processTTSQueue = useCallback(async () => {
+    if (ttsProcessingRef.current || ttsQueue.length === 0) return;
+    
+    ttsProcessingRef.current = true;
+    const textToSpeak = ttsQueue[0];
+    
     try {
-      const a = audioRef.current;
-      if (a) {
-        a.pause();
-        a.src = '';
-      }
-    } catch {}
-    // Abort any in-flight TTS requests
-    try {
-      for (const c of ttsAbortControllersRef.current) c.abort();
-      ttsAbortControllersRef.current.clear();
-    } catch {}
-    if (lastUrlRef.current) {
-      URL.revokeObjectURL(lastUrlRef.current);
-      lastUrlRef.current = null;
+      setIsBotSpeaking(true);
+      
+      // Create speech synthesis
+      const utterance = new SpeechSynthesisUtterance(textToSpeak);
+      utterance.rate = 1.0;
+      utterance.pitch = 1.0;
+      utterance.volume = 0.8;
+      
+      utterance.onend = () => {
+        setTtsQueue(prev => prev.slice(1));
+        setIsBotSpeaking(false);
+        ttsProcessingRef.current = false;
+        
+        // Enable mic after bot finishes speaking
+        setTimeout(() => enableMicIfSafe(), 500);
+      };
+      
+      utterance.onerror = (err) => {
+        console.error('Speech synthesis error:', err);
+        setTtsQueue(prev => prev.slice(1));
+        setIsBotSpeaking(false);
+        ttsProcessingRef.current = false;
+        setTimeout(() => enableMicIfSafe(), 500);
+      };
+      
+      // Pause mic while bot is speaking
+      disableMicForBot();
+      
+      speechSynthesis.speak(utterance);
+      
+    } catch (err) {
+      console.error('TTS processing error:', err);
+      setTtsQueue(prev => prev.slice(1));
+      setIsBotSpeaking(false);
+      ttsProcessingRef.current = false;
     }
-    audioRef.current = null;
-    ttsQueueRef.current.length = 0;
-    speakingRef.current = false;
-    setIsBotSpeaking(false);
-  };
+  }, [ttsQueue]);
 
-  // Prefetch TTS and return a blob URL (starts immediately, plays later)
-  const synthesizeToUrl = async (text) => {
-    const ctrl = new AbortController();
-    ttsAbortControllersRef.current.add(ctrl);
-    try {
-      const res = await fetch('/api/tts', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text }),
-        signal: ctrl.signal,
-      });
-      if (!res.ok) throw new Error('TTS request failed');
-      const blob = await res.blob();
-      return URL.createObjectURL(blob);
-    } finally {
-      ttsAbortControllersRef.current.delete(ctrl);
-    }
-  };
+  const enqueueTTS = useCallback((text) => {
+    if (!text?.trim()) return;
+    setTtsQueue(prev => [...prev, text.trim()]);
+  }, []);
 
-  const playUrl = async (url) => {
-    // Revoke previous URL (now finished) before assigning new
-    if (lastUrlRef.current) URL.revokeObjectURL(lastUrlRef.current);
-    lastUrlRef.current = url;
-
-    const audio = new Audio(url);
-    audio.playbackRate = TTS_PLAYBACK_RATE;
-    audioRef.current = audio;
-
-    await new Promise((resolve, reject) => {
-      audio.onended = resolve;
-      audio.onerror = reject;
-      audio.play().catch(reject);
-    });
-  };
-
-  const processQueue = async () => {
-    if (speakingRef.current) return;
-    if (ttsQueueRef.current.length === 0) return;
-
-    speakingRef.current = true;
-    console.log('🤖 Bot speaking: queue playback started.');
-    beginBotSpeaking();
-    try {
-      // Play all queued items back-to-back with mic muted
-      while (ttsQueueRef.current.length) {
-        const next = ttsQueueRef.current.shift();
-        try {
-          const url = await next.urlPromise;
-          await playUrl(url);
-        } catch (e) {
-          console.warn('TTS playback failed:', e);
-        }
-      }
-    } finally {
-      speakingRef.current = false;
-      endBotSpeaking();
-      // If something queued while we were playing, process again
-      if (ttsQueueRef.current.length) processQueue();
-    }
-  };
-
-  const enqueueTTS = (text) => {
-    const t = String(text || '').trim();
-    if (!t) return;
-    // Kick off fetch immediately; playback will await the promise
-    const urlPromise = synthesizeToUrl(t);
-    ttsQueueRef.current.push({ text: t, urlPromise });
-    if (!speakingRef.current) processQueue();
-  };
-
-  // Split long text into short speakable chunks (sentences, then max length)
-  const splitIntoTTSChunks = (text, maxLen = 240) => {
+  const splitIntoTTSChunks = useCallback((text, maxLen = 240) => {
     const s = String(text || '').trim();
     if (!s) return [];
+    
     let sentences = [];
 
     // Prefer sentence segmentation if available
@@ -203,8 +107,11 @@ export default function LiveTranscription() {
           const t = segment.trim();
           if (t) sentences.push(t);
         }
-      } catch {}
+      } catch (err) {
+        console.warn('Intl.Segmenter not available:', err);
+      }
     }
+    
     if (sentences.length === 0) {
       sentences = s.split(/(?<=[.!?])\s+/).map(t => t.trim()).filter(Boolean);
     }
@@ -215,6 +122,7 @@ export default function LiveTranscription() {
         chunks.push(sent);
         continue;
       }
+      
       // Further split long sentences by comma/space
       let rest = sent;
       while (rest.length > maxLen) {
@@ -227,29 +135,76 @@ export default function LiveTranscription() {
       if (rest) chunks.push(rest);
     }
     return chunks;
-  };
+  }, []);
 
-  const enqueueTTSChunks = (text) => {
+  const enqueueTTSChunks = useCallback((text) => {
     const chunks = splitIntoTTSChunks(text);
-    for (const chunk of chunks) enqueueTTS(chunk);
-  };
+    chunks.forEach(chunk => enqueueTTS(chunk));
+  }, [splitIntoTTSChunks, enqueueTTS]);
 
-  // Helper: stop mic, recorder, and silence timer - but only if WebSocket is actually closed
-  const shutdownMic = () => {
-    // Only shutdown if WebSocket is closed or we're explicitly stopping
+  // Process TTS queue
+  useEffect(() => {
+    processTTSQueue();
+  }, [ttsQueue, processTTSQueue]);
+
+  // Microphone control functions
+  const enableMicIfSafe = useCallback(() => {
+    if (!isBotSpeaking && mediaRecorderRef.current && streamRef.current && !isClosingRef.current) {
+      try {
+        // Enable microphone tracks
+        streamRef.current.getTracks().forEach((track) => {
+          track.enabled = true;
+        });
+        
+        // Resume recording if paused
+        if (mediaRecorderRef.current.state === 'paused') {
+          mediaRecorderRef.current.resume();
+          console.log('🎙️ Mic resumed');
+        }
+      } catch (err) {
+        console.warn('Failed to enable mic:', err);
+      }
+    }
+  }, [isBotSpeaking]);
+
+  const disableMicForBot = useCallback(() => {
+    if (mediaRecorderRef.current && streamRef.current) {
+      try {
+        // Disable microphone tracks
+        streamRef.current.getTracks().forEach((track) => {
+          track.enabled = false;
+        });
+        
+        // Pause recording
+        if (mediaRecorderRef.current.state === 'recording') {
+          mediaRecorderRef.current.pause();
+          console.log('⏸️ Mic paused for bot speech');
+        }
+      } catch (err) {
+        console.warn('Failed to disable mic:', err);
+      }
+    }
+  }, []);
+
+  // Helper: stop mic, recorder, and silence timer
+  const shutdownMic = useCallback(() => {
     if (!shouldKeepMicActiveRef.current) {
       console.log('🔇 Shutting down mic (WebSocket closed or explicit stop)');
       try {
         if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
           mediaRecorderRef.current.stop();
         }
-      } catch {}
+      } catch (err) {
+        console.warn('Error stopping media recorder:', err);
+      }
       mediaRecorderRef.current = null;
 
       if (streamRef.current) {
         try {
-          streamRef.current.getTracks().forEach((t) => t.stop());
-        } catch {}
+          streamRef.current.getTracks().forEach((track) => track.stop());
+        } catch (err) {
+          console.warn('Error stopping stream tracks:', err);
+        }
         streamRef.current = null;
       }
 
@@ -264,10 +219,10 @@ export default function LiveTranscription() {
     } else {
       console.log('🎙️ Keeping mic active (WebSocket still connected)');
     }
-  };
+  }, []);
 
   // Auto-restart Deepgram connection if it closes but WebSocket is still open
-  const restartDeepgramIfNeeded = async () => {
+  const restartDeepgramIfNeeded = useCallback(async () => {
     if (shouldKeepMicActiveRef.current && 
         socketRef.current && 
         socketRef.current.readyState === WebSocket.OPEN &&
@@ -277,13 +232,13 @@ export default function LiveTranscription() {
         if (shouldKeepMicActiveRef.current) {
           startDeepgramConnection();
         }
-      }, 1000); // Brief delay before reconnecting
+      }, 1000);
     }
-  };
+  }, []);
 
-  // ------------------ WebSocket helpers ------------------
-  const ensureSocketConnected = () => {
-    if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) return;
+  // WebSocket helpers
+  const ensureSocketConnected = useCallback(() => {
+    if (socketRef.current?.readyState === WebSocket.OPEN) return;
 
     try {
       const socket = new WebSocket('ws://10.50.63.14:5001');
@@ -291,54 +246,61 @@ export default function LiveTranscription() {
 
       socket.onopen = () => {
         console.log('✅ WebSocket connected');
-        shouldKeepMicActiveRef.current = true; // Enable mic protection
+        shouldKeepMicActiveRef.current = true;
+        setError('');
       };
 
       socket.onmessage = (event) => {
-        console.log('📩 Message from server:', event.data);
-        const msg = String(event.data);
-        setConversation((prev) => [...prev, { role: 'bot', text: msg }]);
-        enqueueTTSChunks(msg);
+        try {
+          const msg = String(event.data);
+          console.log('📩 Message from server:', msg);
+          setConversation((prev) => [...prev, { role: 'bot', text: msg }]);
+          enqueueTTSChunks(msg);
+        } catch (err) {
+          console.error('Error processing message:', err);
+        }
       };
 
-      socket.onclose = () => {
-        console.log('❌ WebSocket closed');
-        shouldKeepMicActiveRef.current = false; // Disable mic protection
+      socket.onclose = (event) => {
+        console.log('❌ WebSocket closed:', event.code, event.reason);
+        shouldKeepMicActiveRef.current = false;
         socketRef.current = null;
 
-        // Now it's safe to shutdown mic since WebSocket is closed
         if (!isClosingRef.current) {
           shutdownMic();
-          try {
-            connectionRef.current?.requestClose?.();
-          } catch {}
+          setError('WebSocket connection lost. Please restart transcription.');
         }
       };
 
       socket.onerror = (err) => {
         console.error('⚠️ WebSocket error:', err);
+        setError('WebSocket connection error. Check your network connection.');
       };
+
     } catch (err) {
       console.error('Failed to connect WebSocket:', err);
-      setError('WebSocket connection failed');
+      setError(`WebSocket connection failed: ${err.message}`);
       throw err;
     }
-  };
+  }, [shutdownMic, enqueueTTSChunks]);
 
-  const closeSocket = () => {
-    shouldKeepMicActiveRef.current = false; // Disable mic protection
+  const closeSocket = useCallback(() => {
+    shouldKeepMicActiveRef.current = false;
     const sock = socketRef.current;
     if (sock) {
       try {
         sock.close();
-      } catch {}
+      } catch (err) {
+        console.warn('Error closing socket:', err);
+      }
       socketRef.current = null;
     }
-  };
+  }, []);
 
-  const sendToServer = (msg) => {
+  const sendToServer = useCallback((msg) => {
     const trimmed = msg.trim();
     if (!trimmed) return;
+    
     const sock = socketRef.current;
     if (sock && sock.readyState === WebSocket.OPEN) {
       sock.send(trimmed);
@@ -346,25 +308,26 @@ export default function LiveTranscription() {
     } else {
       console.warn('⚠️ Socket not open; could not send:', trimmed);
     }
-  };
+  }, []);
 
-  // ------------------ Deepgram Transcription ------------------
-  const startDeepgramConnection = async () => {
+  // Deepgram Transcription
+  const startDeepgramConnection = useCallback(async () => {
     try {
       const deepgramApiKey = process.env.NEXT_PUBLIC_DEEPGRAM_API_KEY || '';
       if (!deepgramApiKey) {
-        setError('Missing Deepgram API key (NEXT_PUBLIC_DEEPGRAM_API_KEY).');
-        return;
+        throw new Error('Missing Deepgram API key (NEXT_PUBLIC_DEEPGRAM_API_KEY).');
       }
 
       const deepgram = createClient(deepgramApiKey);
       const connection = deepgram.listen.live({
-        model: 'nova-3',
+        model: 'nova-2',
         language: 'en-US',
         smart_format: true,
         interim_results: true,
         punctuate: true,
+        diarize: false,
       });
+      
       connectionRef.current = connection;
 
       // Handle incoming transcripts
@@ -375,24 +338,20 @@ export default function LiveTranscription() {
         const isFinal = data?.is_final ?? false;
         
         if (isFinal) {
-          // For final results, this is the complete utterance for this segment
           console.log('📝 Final transcript:', t);
           setCurrentUtterance(prev => {
-            // If we have previous content, append with space, otherwise use new content
-            const newUtterance = prev ? prev + ' ' + t : t;
+            const newUtterance = prev.trim() ? `${prev.trim()} ${t}` : t;
             currentUtteranceRef.current = newUtterance;
             return newUtterance;
           });
         } else {
-          // For interim results, just show the current transcript without accumulating
           console.log('📝 Interim transcript:', t);
           setCurrentUtterance(t);
-          // Don't update the ref for interim results
         }
         
         setSilence(false);
 
-        // Reset silence timer on any transcript (interim or final)
+        // Reset silence timer on any transcript
         if (silenceTimeoutRef.current) {
           clearTimeout(silenceTimeoutRef.current);
           silenceTimeoutRef.current = null;
@@ -407,8 +366,9 @@ export default function LiveTranscription() {
             setConversation((prev) => [...prev, { role: 'user', text: finalUtterance }]);
             sendToServer(finalUtterance);
           }
+          
           setCurrentUtterance('');
-          currentUtteranceRef.current = ''; // Reset the ref
+          currentUtteranceRef.current = '';
           setSilence(true);
         }, 1500);
       });
@@ -416,21 +376,17 @@ export default function LiveTranscription() {
       connection.on(LiveTranscriptionEvents.Error, (err) => {
         console.error('Deepgram error:', err);
         setError('Deepgram error: ' + (err?.message || String(err)));
-        // Only shutdown if WebSocket is also closed
         shutdownMic();
       });
 
       connection.on(LiveTranscriptionEvents.Close, () => {
         console.log('🔚 Deepgram connection closed');
-        // Don't shutdown mic here - let WebSocket onclose handle it
-        // Instead, try to restart if WebSocket is still active
         restartDeepgramIfNeeded();
       });
 
       connection.on(LiveTranscriptionEvents.Open, async () => {
         console.log('🟢 Deepgram connection opened');
         try {
-          // Reuse existing stream if available, otherwise create new one
           if (!streamRef.current) {
             streamRef.current = await navigator.mediaDevices.getUserMedia({
               audio: {
@@ -438,6 +394,7 @@ export default function LiveTranscription() {
                 noiseSuppression: true,
                 autoGainControl: false,
                 channelCount: 1,
+                sampleRate: 16000,
               },
             });
           }
@@ -457,50 +414,45 @@ export default function LiveTranscription() {
             }
           });
           
-          mediaRecorder.addEventListener('pause', () => {
-            console.log('📣 MediaRecorder event: pause (mic capturing paused).');
-          });
-          mediaRecorder.addEventListener('resume', () => {
-            console.log('📣 MediaRecorder event: resume (mic capturing resumed).');
-          });
           mediaRecorder.addEventListener('stop', () => {
-            console.log('📣 MediaRecorder event: stop (mic fully stopped).');
+            console.log('📣 MediaRecorder stopped');
           });
 
           mediaRecorder.start(250);
           setIsTranscribing(true);
           console.log('🎙️ Recording started');
 
-          // Initially pause + disable to avoid capturing bot's greeting
-          try {
-            if (mediaRecorder.state === 'recording' && typeof mediaRecorder.pause === 'function') {
-              mediaRecorder.pause();
-              console.log('⏸️ Mic initially paused (waiting for bot greeting).');
-            }
-          } catch {}
+          // Initially disable to avoid capturing bot's greeting
           try {
             streamRef.current.getTracks().forEach((t) => (t.enabled = false));
-            console.log('🎙️ Mic disabled (tracks disabled initially).');
-          } catch {}
+            if (mediaRecorder.state === 'recording') {
+              mediaRecorder.pause();
+            }
+            console.log('🎙️ Mic initially disabled');
+          } catch (err) {
+            console.warn('Error initially disabling mic:', err);
+          }
 
-          setTimeout(() => enableMicIfSafe(), 150);
+          setTimeout(() => enableMicIfSafe(), 500);
+          
         } catch (e) {
           console.error('Mic error:', e);
-          setError('Mic error: ' + (e?.message || String(e)));
+          setError('Microphone error: ' + (e?.message || String(e)));
           shutdownMic();
           try {
             connection.requestClose?.();
           } catch {}
         }
       });
+      
     } catch (err) {
       console.error('Error starting Deepgram connection:', err);
-      setError('Error: ' + (err?.message || String(err)));
-      shutdownMic();
+      setError(`Deepgram connection failed: ${err.message}`);
+      setIsTranscribing(false);
     }
-  };
+  }, [shutdownMic, restartDeepgramIfNeeded, enableMicIfSafe, sendToServer]);
 
-  const startTranscription = async () => {
+  const startTranscription = useCallback(async () => {
     if (isTranscribing) return;
 
     setError('');
@@ -508,23 +460,23 @@ export default function LiveTranscription() {
       ensureSocketConnected();
       
       if (!navigator.mediaDevices?.getUserMedia) {
-        setError('getUserMedia is not supported in this browser.');
-        return;
+        throw new Error('getUserMedia is not supported in this browser.');
       }
 
       isClosingRef.current = false;
       await startDeepgramConnection();
+      
     } catch (err) {
       console.error('Error starting transcription:', err);
       setError('Error: ' + (err?.message || String(err)));
       setIsTranscribing(false);
     }
-  };
+  }, [isTranscribing, ensureSocketConnected, startDeepgramConnection]);
 
-  const stopTranscription = () => {
+  const stopTranscription = useCallback(() => {
     setError('');
     isClosingRef.current = true;
-    shouldKeepMicActiveRef.current = false; // Allow mic shutdown
+    shouldKeepMicActiveRef.current = false;
 
     // Stop mic/recorder and timers
     shutdownMic();
@@ -532,7 +484,9 @@ export default function LiveTranscription() {
     // Close Deepgram connection
     try {
       connectionRef.current?.requestClose?.();
-    } catch {}
+    } catch (err) {
+      console.warn('Error closing Deepgram connection:', err);
+    }
     connectionRef.current = null;
 
     // Close app socket
@@ -542,7 +496,7 @@ export default function LiveTranscription() {
     stopAudio();
 
     setIsTranscribing(false);
-  };
+  }, [shutdownMic, closeSocket, stopAudio]);
 
   // Keep a ref mirror for currentUtterance to avoid stale closures
   useEffect(() => {
@@ -553,26 +507,60 @@ export default function LiveTranscription() {
   useEffect(() => {
     try {
       convoEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    } catch {}
+    } catch (err) {
+      console.warn('Error scrolling to bottom:', err);
+    }
   }, [conversation, currentUtterance, isTranscribing, silence]);
 
+  // Cleanup on unmount
   useEffect(() => {
     return () => {
-      // unmount cleanup
-      stopTranscription();
-      closeSocket();
-      stopAudio();
+      isClosingRef.current = true;
+      shouldKeepMicActiveRef.current = false;
+      
+      // Clear all timeouts
+      if (silenceTimeoutRef.current) {
+        clearTimeout(silenceTimeoutRef.current);
+      }
+      
+      // Stop media recorder
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+        try {
+          mediaRecorderRef.current.stop();
+        } catch {}
+      }
+      
+      // Stop all media tracks
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => {
+          try {
+            track.stop();
+          } catch {}
+        });
+      }
+      
+      // Close connections
+      try {
+        connectionRef.current?.requestClose?.();
+      } catch {}
+      
+      try {
+        socketRef.current?.close();
+      } catch {}
+      
+      // Stop TTS
+      try {
+        speechSynthesis.cancel();
+      } catch {}
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ------------------ UI ------------------
-  // Thematic dark mode and animation when transcribing
+  // UI state
   const showThematic = isTranscribing;
+  
   // Caption: current speech (user or bot)
   let captionText = '';
   if (isBotSpeaking && conversation.length > 0) {
-    // Show last bot message as caption
     const lastBotMsg = [...conversation].reverse().find(m => m.role === 'bot');
     captionText = lastBotMsg?.text || '';
   } else if (!silence && currentUtterance) {
@@ -588,9 +576,10 @@ export default function LiveTranscription() {
               Live Transcription
             </h1>
             <p className="mt-2 text-lg sm:text-xl text-gray-700">
-              Press Start, then speak. We’ll capture it and send it to your assistant.
+              Press Start, then speak. We'll capture it and send it to your assistant.
             </p>
           </header>
+          
           <section className="mb-8">
             <div className="flex flex-wrap items-center gap-3">
               <button
@@ -600,9 +589,20 @@ export default function LiveTranscription() {
                 aria-pressed={isTranscribing}
               >
                 <span aria-hidden>🎙️</span>
-                Start Transcription
+                {isTranscribing ? 'Transcribing...' : 'Start Transcription'}
               </button>
+              
+              {isTranscribing && (
+                <button
+                  onClick={stopTranscription}
+                  className="inline-flex items-center gap-2 rounded-xl bg-red-600 px-6 py-4 text-lg font-semibold text-white shadow-sm transition hover:bg-red-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-red-300"
+                >
+                  <span aria-hidden>🛑</span>
+                  Stop
+                </button>
+              )}
             </div>
+            
             {error && (
               <div className="mt-4 rounded-xl border-l-4 border-red-600 bg-red-50 p-4 text-red-800">
                 <p className="text-lg font-semibold">Error</p>
@@ -610,6 +610,7 @@ export default function LiveTranscription() {
               </div>
             )}
           </section>
+          
           {/* Conversation */}
           <section aria-labelledby="conversation-title">
             <h3 id="conversation-title" className="text-2xl font-bold">
@@ -646,20 +647,16 @@ export default function LiveTranscription() {
           </section>
         </div>
       )}
+      
       {showThematic && (
         <>
-          {/* Siri-style bar animation moved up by 1/7th and increased size */}
           <div className="flex flex-col items-center justify-start w-full h-full" style={{ minHeight: '60vh', paddingTop: '14.2857vh' }}>
-            <div className="flex justify-center items-center" style={{ height: 420 }}>
-              <SiriAnimation
-                amplitude={isBotSpeaking ? 2.5 : (!silence ? 2.5 : 1)}
-                speed={isBotSpeaking || !silence ? 0.15 : 0.05}
-                width={900}
-                height={400}
-              />
-            </div>
+            {/* Animate amplitude: small regular movement when audio is coming from user or system */}
+            <CircleAnimation amplitude={
+              isBotSpeaking || (!silence && isTranscribing) ? 2.5 : (!silence || isTranscribing ? 1.2 : 1)
+            } />
           </div>
-          {/* Chat history at bottom, padded 1/6th left/right */}
+          
           <div className="fixed bottom-0 left-0 w-full pb-6" style={{ paddingLeft: '16.6667vw', paddingRight: '16.6667vw' }}>
             <div className="max-h-64 overflow-auto rounded-2xl border border-gray-800 bg-black/80 shadow-lg p-5" aria-live="polite" role="log">
               {conversation.length === 0 ? (
@@ -683,7 +680,7 @@ export default function LiveTranscription() {
                       <span>{m.text}</span>
                     </li>
                   ))}
-                  {/* Typing indicator: shows current utterance at the bottom */}
+                  
                   {isTranscribing && !isBotSpeaking && !silence && (
                     <li className="text-xl leading-relaxed text-gray-300">
                       <span className="mr-2 inline-flex items-center rounded-full px-3 py-1 text-sm font-semibold bg-emerald-800 text-white">
@@ -704,8 +701,19 @@ export default function LiveTranscription() {
               <div ref={convoEndRef} />
             </div>
           </div>
+          
+          {/* Stop button in thematic mode */}
+          <button
+            onClick={stopTranscription}
+            className="fixed top-6 right-6 inline-flex items-center gap-2 rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-red-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-red-300"
+          >
+            <span aria-hidden>🛑</span>
+            Stop
+          </button>
         </>
       )}
     </main>
   );
 }
+
+export default HomePage;
