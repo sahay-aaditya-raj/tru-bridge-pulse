@@ -4,6 +4,10 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
 export default function Login() {
   const [formData, setFormData] = useState({
@@ -53,95 +57,98 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen gradient-bg flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-gradient-to-br from-cyan-50 via-blue-50 to-emerald-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full">
         <div className="text-center mb-8">
-          <Link href="/" className="text-white hover:text-blue-100 transition-colors">
-            <h1 className="text-3xl font-bold mb-2">TruBridge Pulse</h1>
+          <Link href="/" className="text-foreground hover:text-primary transition-colors">
+            <h1 className="text-3xl font-bold mb-2 bg-gradient-to-r from-emerald-600 to-blue-600 bg-clip-text text-transparent">
+              TruBridge Pulse
+            </h1>
           </Link>
-          <h2 className="text-xl text-blue-100">Welcome back!</h2>
-          <p className="text-blue-200 mt-2">Sign in to your account</p>
+          <h2 className="text-xl text-foreground">Welcome back!</h2>
+          <p className="text-muted-foreground mt-2">Sign in to your account</p>
         </div>
 
-        <div className="card fade-in">
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {error && (
-              <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-md">
-                {error}
-              </div>
-            )}
-
-            <div>
-              <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-2">
-                Username
-              </label>
-              <input
-                id="username"
-                name="username"
-                type="text"
-                required
-                className="input-field"
-                placeholder="Enter your username"
-                value={formData.username}
-                onChange={handleChange}
-                disabled={loading}
-              />
-            </div>
-
-            <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
-                Password
-              </label>
-              <input
-                id="password"
-                name="password"
-                type="password"
-                required
-                className="input-field"
-                placeholder="Enter your password"
-                value={formData.password}
-                onChange={handleChange}
-                disabled={loading}
-              />
-            </div>
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="btn-primary w-full flex items-center justify-center"
-            >
-              {loading ? (
-                <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                  Signing in...
-                </>
-              ) : (
-                'Sign In'
+        <Card className="fade-in shadow-lg border-0 bg-white/80 backdrop-blur-sm">
+          <CardHeader>
+            <CardTitle>Sign In</CardTitle>
+            <CardDescription>Enter your credentials to access your account</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleSubmit} className="space-y-6">
+              {error && (
+                <div className="bg-destructive/10 border border-destructive/20 text-destructive px-4 py-3 rounded-md">
+                  {error}
+                </div>
               )}
-            </button>
-          </form>
 
-          <div className="mt-6 text-center">
-            <p className="text-gray-600">
-              Don&apos;t have an account?{' '}
-              <Link 
-                href="/auth/signup" 
-                className="text-blue-600 hover:text-blue-800 font-medium transition-colors"
+              <div className="space-y-2">
+                <Label htmlFor="username">Username</Label>
+                <Input
+                  id="username"
+                  name="username"
+                  type="text"
+                  required
+                  placeholder="Enter your username"
+                  value={formData.username}
+                  onChange={handleChange}
+                  disabled={loading}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="password">Password</Label>
+                <Input
+                  id="password"
+                  name="password"
+                  type="password"
+                  required
+                  placeholder="Enter your password"
+                  value={formData.password}
+                  onChange={handleChange}
+                  disabled={loading}
+                />
+              </div>
+
+              <Button
+                type="submit"
+                disabled={loading}
+                className="w-full"
+                size="lg"
               >
-                Sign up here
-              </Link>
-            </p>
-          </div>
+                {loading ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    Signing in...
+                  </>
+                ) : (
+                  'Sign In'
+                )}
+              </Button>
+            </form>
 
-          <div className="mt-4 text-center">
-            <Link 
-              href="/" 
-              className="text-gray-500 hover:text-gray-700 text-sm transition-colors"
-            >
-              ← Back to home
-            </Link>
-          </div>
-        </div>
+            <div className="mt-6 text-center">
+              <p className="text-muted-foreground">
+                Don&apos;t have an account?{' '}
+                <Link 
+                  href="/auth/signup" 
+                  className="text-primary hover:text-primary/80 font-medium transition-colors"
+                >
+                  Sign up here
+                </Link>
+              </p>
+            </div>
+
+            <div className="mt-4 text-center">
+              <Link 
+                href="/" 
+                className="text-muted-foreground hover:text-foreground text-sm transition-colors"
+              >
+                ← Back to home
+              </Link>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );

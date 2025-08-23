@@ -4,6 +4,8 @@ import { useEffect, useRef, useState } from 'react';
 import { createClient, LiveTranscriptionEvents } from '@deepgram/sdk';
 import { useAuth } from '@/hooks/useAuth';
 import { useRouter } from 'next/navigation';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import SiriAnimation from '../chat_avatar/line_animation';
 
 export default function LiveTranscription() {
@@ -31,7 +33,7 @@ export default function LiveTranscription() {
   const sendIntroductionMessage = () => {
     if (!user || hasIntroduced) return;
     // Send to server
-    sendToServer(`name: "${user.name}", username: "${user.username}", age: ${user.age}, gender: ${user.gender}.`);
+    sendToServer(`{"name": "${user.name}", "username": "${user.username}", "age": ${user.age}, "gender": "${user.gender}"}`);
     setHasIntroduced(true);
   };
 
@@ -152,7 +154,19 @@ export default function LiveTranscription() {
         body: JSON.stringify({ text }),
         signal: ctrl.signal,
       });
-      if (!res.ok) throw new Error('TTS request failed');
+      
+      if (!res.ok) {
+        let errorMessage = 'TTS request failed';
+        try {
+          const errorData = await res.json();
+          errorMessage = errorData.error || errorMessage;
+        } catch (e) {
+          // If we can't parse the error response, use the status text
+          errorMessage = res.statusText || errorMessage;
+        }
+        console.error(errorMessage)
+      }
+      
       const blob = await res.blob();
       return URL.createObjectURL(blob);
     } finally {
@@ -618,10 +632,10 @@ export default function LiveTranscription() {
   // Loading screen for authentication check
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center gradient-bg">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-cyan-50 via-blue-50 to-emerald-50">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
-          <p className="text-white text-lg">Loading...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-foreground text-lg">Loading...</p>
         </div>
       </div>
     );
@@ -630,17 +644,20 @@ export default function LiveTranscription() {
   // Redirect message if not authenticated
   if (!isAuthenticated || !user) {
     return (
-      <div className="min-h-screen flex items-center justify-center gradient-bg">
-        <div className="text-center">
-          <h2 className="text-2xl font-bold text-white mb-4">Authentication Required</h2>
-          <p className="text-blue-100 mb-6">Please log in to use the speech-to-text feature.</p>
-          <button
-            onClick={() => router.push('/auth/login')}
-            className="btn-primary"
-          >
-            Go to Login
-          </button>
-        </div>
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-cyan-50 via-blue-50 to-emerald-50">
+        <Card className="text-center max-w-md mx-auto">
+          <CardHeader>
+            <CardTitle>Authentication Required</CardTitle>
+            <CardDescription>Please log in to use the speech-to-text feature.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button
+              onClick={() => router.push('/auth/login')}
+            >
+              Go to Login
+            </Button>
+          </CardContent>
+        </Card>
       </div>
     );
   }
@@ -659,59 +676,66 @@ export default function LiveTranscription() {
   }
 
   return (
-    <main className={showThematic ? 'min-h-screen bg-black text-white flex flex-col items-center justify-center' : 'min-h-screen bg-gray-50 text-gray-900'}>
+    <main className={showThematic ? 'min-h-screen bg-black text-white flex flex-col items-center justify-center' : 'min-h-screen bg-gradient-to-br from-cyan-50 via-blue-50 to-emerald-50'}>
       {!showThematic && (
         <div className="mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:px-8">
           {/* Header with user info */}
           <header className="mb-8">
             <div className="flex items-center justify-between mb-4">
               <div>
-                <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight gradient-text">
+                <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight bg-gradient-to-r from-emerald-600 to-blue-600 bg-clip-text text-transparent">
                   Live Transcription
                 </h1>
-                <p className="mt-2 text-lg sm:text-xl text-gray-700">
+                <p className="mt-2 text-lg sm:text-xl text-muted-foreground">
                   Welcome, {user.name}! Press Start to begin your conversation.
                 </p>
               </div>
               <div className="text-right">
-                <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-                  <div className="text-sm text-gray-600 mb-1">Logged in as:</div>
-                  <div className="font-semibold text-gray-900">{user.name}</div>
-                  <div className="text-sm text-gray-500">@{user.username}</div>
-                </div>
+                <Card className="bg-white/80 backdrop-blur-sm">
+                  <CardContent className="p-4">
+                    <div className="text-sm text-muted-foreground mb-1">Logged in as:</div>
+                    <div className="font-semibold">{user.name}</div>
+                    <div className="text-sm text-muted-foreground">@{user.username}</div>
+                  </CardContent>
+                </Card>
               </div>
             </div>
           </header>
           
           <section className="mb-8">
             <div className="flex flex-wrap items-center gap-3">
-              <button
+              <Button
                 onClick={startTranscription}
                 disabled={isTranscribing}
-                className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-6 py-4 text-lg font-semibold text-white shadow-sm transition hover:bg-emerald-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-emerald-300 disabled:cursor-not-allowed disabled:opacity-50"
+                size="lg"
+                className="inline-flex items-center gap-2 text-lg"
                 aria-pressed={isTranscribing}
               >
                 <span aria-hidden>🎙️</span>
                 {isTranscribing ? 'Transcription Active' : 'Start Transcription'}
-              </button>
+              </Button>
               
               {isTranscribing && (
-                <button
+                <Button
                   onClick={stopTranscription}
-                  className="inline-flex items-center gap-2 rounded-xl bg-red-600 px-6 py-4 text-lg font-semibold text-white shadow-sm transition hover:bg-red-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-red-300"
+                  variant="destructive"
+                  size="lg"
+                  className="inline-flex items-center gap-2 text-lg"
                 >
                   <span aria-hidden>🛑</span>
                   Stop Transcription
-                </button>
+                </Button>
               )}
               
-              <button
+              <Button
                 onClick={() => router.push('/dashboard')}
-                className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-6 py-4 text-lg font-semibold text-white shadow-sm transition hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300"
+                variant="outline"
+                size="lg"
+                className="inline-flex items-center gap-2 text-lg"
               >
                 <span aria-hidden>📊</span>
                 Dashboard
-              </button>
+              </Button>
             </div>
             
             {/* Introduction status */}
