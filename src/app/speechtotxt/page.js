@@ -371,7 +371,26 @@ export default function LiveTranscription() {
         const t = data?.channel?.alternatives?.[0]?.transcript?.trim() ?? '';
         if (!t) return;
 
-        setCurrentUtterance(t);
+        // Check if this is a final result or interim
+        const isFinal = data?.is_final ?? false;
+        
+        if (isFinal) {
+          // For final results, accumulate with previous utterance
+          setCurrentUtterance(prev => {
+            const accumulated = prev ? prev + ' ' + t : t;
+            currentUtteranceRef.current = accumulated;
+            return accumulated;
+          });
+        } else {
+          // For interim results, show the current transcript but don't lose previous parts
+          setCurrentUtterance(prev => {
+            // Keep any previous final parts and show current interim
+            const baseUtterance = currentUtteranceRef.current || '';
+            const display = baseUtterance ? baseUtterance + ' ' + t : t;
+            return display;
+          });
+        }
+        
         setSilence(false);
 
         if (silenceTimeoutRef.current) {
@@ -388,6 +407,7 @@ export default function LiveTranscription() {
             sendToServer(finalUtterance);
           }
           setCurrentUtterance('');
+          currentUtteranceRef.current = ''; // Reset the ref as well
           setSilence(true);
         }, 1500);
       });

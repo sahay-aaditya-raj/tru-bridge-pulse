@@ -3,8 +3,8 @@ import { NextResponse } from 'next/server';
 // Simple in-memory queue and rate limiter
 const requestQueue = [];
 const activeRequests = new Set();
-const MAX_CONCURRENT_REQUESTS = 35;
-const MAX_QUEUE_SIZE = 70;
+const MAX_CONCURRENT_REQUESTS = 100;
+const MAX_QUEUE_SIZE = 200;
 const REQUEST_TIMEOUT = 30000; // 30 seconds
 
 // Rate limiting per IP
