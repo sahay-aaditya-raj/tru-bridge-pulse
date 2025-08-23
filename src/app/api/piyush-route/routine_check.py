@@ -48,12 +48,7 @@ async def socratic_chatbot_handler(websocket):
     # an independent conversation history.
     memory = ConversationBufferMemory(memory_key="chat_history")
     chain = LLMChain(llm=llm, prompt=prompt, memory=memory)
-
-    # Send the welcome message immediately upon connection
-    welcome_msg = "Hello! I'm your agent for a routine health checkup. How can I help you today?"
-    await websocket.send(welcome_msg)
-    print(f"Sent welcome message to {websocket.remote_address}")
-
+    await websocket.send("")
     # Main message-handling loop
     try:
         async for message in websocket:
