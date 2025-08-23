@@ -19,6 +19,7 @@ export default function LiveTranscription() {
   const silenceTimeoutRef = useRef(null);
   const currentUtteranceRef = useRef('');
   const isClosingRef = useRef(false);
+  const convoEndRef = useRef(null);
 
   // Helper: stop mic, recorder, and silence timer without closing sockets
   const shutdownMic = () => {
@@ -49,6 +50,13 @@ export default function LiveTranscription() {
   useEffect(() => {
     currentUtteranceRef.current = currentUtterance;
   }, [currentUtterance]);
+
+  // Auto-scroll chat to the bottom when messages or the typing indicator change
+  useEffect(() => {
+    try {
+      convoEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    } catch {}
+  }, [conversation, currentUtterance, isTranscribing, silence]);
 
   // ------------------ WebSocket helpers ------------------
   const ensureSocketConnected = () => {
@@ -255,41 +263,107 @@ export default function LiveTranscription() {
 
   // ------------------ UI ------------------
   return (
-    <div>
-      <h2>Live Transcription</h2>
+    <main className="min-h-screen bg-gray-50 text-gray-900">
+      <div className="mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:px-8">
+        <header className="mb-8">
+          <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight">
+            Live Transcription
+          </h1>
+          <p className="mt-2 text-lg sm:text-xl text-gray-700">
+            Press Start, then speak. We’ll capture it and send it to your assistant.
+          </p>
+        </header>
 
-      {/* Deepgram controls */}
-      <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
-        <button onClick={startTranscription} disabled={isTranscribing}>
-          Start Transcription
-        </button>
-        <button onClick={stopTranscription} disabled={!isTranscribing}>
-          Stop Transcription
-        </button>
+        {/* Deepgram controls */}
+        <section className="mb-8">
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              onClick={startTranscription}
+              disabled={isTranscribing}
+              className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-6 py-4 text-lg font-semibold text-white shadow-sm transition hover:bg-emerald-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-emerald-300 disabled:cursor-not-allowed disabled:opacity-50"
+              aria-pressed={isTranscribing}
+            >
+              <span aria-hidden>🎙️</span>
+              Start Transcription
+            </button>
+            {/* <button
+              onClick={stopTranscription}
+              disabled={!isTranscribing}
+              className="inline-flex items-center gap-2 rounded-xl bg-rose-600 px-6 py-4 text-lg font-semibold text-white shadow-sm transition hover:bg-rose-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-rose-300 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <span aria-hidden>⏹️</span>
+              Stop Transcription
+            </button> */}
+          </div>
+
+          {error && (
+            <div className="mt-4 rounded-xl border-l-4 border-red-600 bg-red-50 p-4 text-red-800">
+              <p className="text-lg font-semibold">Error</p>
+              <p className="mt-1 text-lg leading-relaxed">{error}</p>
+            </div>
+          )}
+        </section>
+
+        {/* Conversation */}
+        <section aria-labelledby="conversation-title">
+          <h3 id="conversation-title" className="text-2xl font-bold">
+            Conversation
+          </h3>
+          <div
+            className="mt-4 rounded-2xl border border-gray-200 bg-white shadow-sm"
+          >
+            <div className="max-h-80 overflow-auto p-5" aria-live="polite" role="log">
+              {conversation.length === 0 ? (
+                <p className="text-lg text-gray-600">No messages yet</p>
+              ) : (
+                <ul className="space-y-3" role="list">
+                  {conversation.map((m, i) => (
+                    <li key={i} className="text-xl leading-relaxed">
+                      <span
+                        className={
+                          'mr-2 inline-flex items-center rounded-full px-3 py-1 text-sm font-semibold ' +
+                          (m.role === 'user'
+                            ? 'bg-emerald-100 text-emerald-800'
+                            : m.role === 'bot'
+                            ? 'bg-indigo-100 text-indigo-800'
+                            : 'bg-gray-200 text-gray-800')
+                        }
+                      >
+                        {m.role === 'user' ? 'You' : m.role === 'bot' ? 'Bot' : 'System'}
+                      </span>
+                      <span>{m.text}</span>
+                    </li>
+                  ))}
+
+                  {/* Typing indicator: shows current utterance at the bottom */}
+                  {isTranscribing && !silence && (
+                    <li className="text-xl leading-relaxed text-gray-700">
+                      <span className="mr-2 inline-flex items-center rounded-full px-3 py-1 text-sm font-semibold bg-emerald-100 text-emerald-800">
+                        You
+                      </span>
+                      <span className="italic">
+                        {currentUtterance || 'Listening'}
+                      </span>
+                      <span className="inline-flex items-center gap-1 ml-2 align-middle">
+                        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-bounce" />
+                        <span
+                          className="w-2 h-2 rounded-full bg-emerald-500 animate-bounce"
+                          style={{ animationDelay: '0.15s' }}
+                        />
+                        <span
+                          className="w-2 h-2 rounded-full bg-emerald-500 animate-bounce"
+                          style={{ animationDelay: '0.3s' }}
+                        />
+                      </span>
+                    </li>
+                  )}
+                </ul>
+              )}
+              <div ref={convoEndRef} />
+            </div>
+          </div>
+        </section>
       </div>
-
-      {error && <p style={{ color: 'red' }}>{error}</p>}
-
-      {/* Transcript view */}
-      <p><strong>Full transcript:</strong> {transcript}</p>
-      <p><strong>Current utterance:</strong> {currentUtterance}</p>
-      {silence && <p style={{ color: 'orange' }}>User stopped speaking</p>}
-
-      <hr style={{ margin: '1.5rem 0' }} />
-
-      {/* Conversation */}
-      <h3>Conversation</h3>
-      <div style={{ border: '1px solid #ccc', padding: '0.75rem', borderRadius: 6, minHeight: 100 }}>
-        {conversation.length === 0 ? (
-          <p style={{ opacity: 0.6 }}>No messages yet</p>
-        ) : (
-          conversation.map((m, i) => (
-            <p key={i} style={{ margin: '0.25rem 0' }}>
-              <strong>{m.role === 'user' ? 'You' : m.role === 'bot' ? 'Bot' : 'System'}:</strong> {m.text}
-            </p>
-          ))
-        )}
-      </div>
-    </div>
+    </main>
   );
 }
