@@ -389,7 +389,7 @@ export default function LiveTranscription() {
           }
           setCurrentUtterance('');
           setSilence(true);
-        }, 2000);
+        }, 1500);
       });
 
       connection.on(LiveTranscriptionEvents.Error, (err) => {
