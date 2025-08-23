@@ -11,8 +11,6 @@ export default function LiveTranscription() {
   const [isTranscribing, setIsTranscribing] = useState(false);
   const [silence, setSilence] = useState(false);
 
-  const [socketConnected, setSocketConnected] = useState(false);
-  const [socketMessage, setSocketMessage] = useState('');
   const socketRef = useRef(null);
 
   const mediaRecorderRef = useRef(null);
@@ -21,6 +19,31 @@ export default function LiveTranscription() {
   const silenceTimeoutRef = useRef(null);
   const currentUtteranceRef = useRef('');
   const isClosingRef = useRef(false);
+
+  // Helper: stop mic, recorder, and silence timer without closing sockets
+  const shutdownMic = () => {
+    try {
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+        mediaRecorderRef.current.stop();
+      }
+    } catch {}
+    mediaRecorderRef.current = null;
+
+    if (streamRef.current) {
+      try {
+        streamRef.current.getTracks().forEach((t) => t.stop());
+      } catch {}
+      streamRef.current = null;
+    }
+
+    if (silenceTimeoutRef.current) {
+      clearTimeout(silenceTimeoutRef.current);
+      silenceTimeoutRef.current = null;
+    }
+
+    setCurrentUtterance('');
+    setSilence(false);
+  };
 
   // Keep a ref mirror for currentUtterance to avoid stale closures
   useEffect(() => {
@@ -37,7 +60,6 @@ export default function LiveTranscription() {
 
       socket.onopen = () => {
         console.log('✅ WebSocket connected');
-        setSocketConnected(true);
       };
 
       socket.onmessage = (event) => {
@@ -47,13 +69,20 @@ export default function LiveTranscription() {
 
       socket.onclose = () => {
         console.log('❌ WebSocket closed');
-        setSocketConnected(false);
         socketRef.current = null;
+
+        // Ensure mic is closed on server-side or client-side socket close
+        if (!isClosingRef.current) {
+          shutdownMic();
+          setIsTranscribing(false);
+          try {
+            connectionRef.current?.requestClose?.();
+          } catch {}
+        }
       };
 
       socket.onerror = (err) => {
         console.error('⚠️ WebSocket error:', err);
-        setSocketConnected(false);
       };
     } catch (err) {
       console.error('Failed to connect WebSocket:', err);
@@ -69,12 +98,8 @@ export default function LiveTranscription() {
         sock.close();
       } catch {}
       socketRef.current = null;
-      setSocketConnected(false);
     }
   };
-
-  const socketIsOpen = () =>
-    socketRef.current && socketRef.current.readyState === WebSocket.OPEN;
 
   const sendToServer = (msg) => {
     const trimmed = msg.trim();
@@ -151,11 +176,13 @@ export default function LiveTranscription() {
       connection.on(LiveTranscriptionEvents.Error, (err) => {
         console.error('Deepgram error:', err);
         setError('Deepgram error: ' + (err?.message || String(err)));
+        shutdownMic();
         setIsTranscribing(false);
       });
 
       connection.on(LiveTranscriptionEvents.Close, () => {
         console.log('🔚 Deepgram connection closed');
+        shutdownMic();
         setIsTranscribing(false);
       });
 
@@ -202,30 +229,19 @@ export default function LiveTranscription() {
     setError('');
     isClosingRef.current = true;
 
-    // Stop media recorder
+    // Stop mic/recorder and timers
+    shutdownMic();
+
+    // Close Deepgram connection
     try {
-      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
-        mediaRecorderRef.current.stop();
-      }
+      connectionRef.current?.requestClose?.();
     } catch {}
+    connectionRef.current = null;
 
-    // Stop mic
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach((t) => t.stop());
-      streamRef.current = null;
-    }
-
-    // Clear silence timer
-    if (silenceTimeoutRef.current) {
-      clearTimeout(silenceTimeoutRef.current);
-      silenceTimeoutRef.current = null;
-    }
-    // close socket
+    // Close app socket
     closeSocket();
 
     setIsTranscribing(false);
-    setSilence(false);
-    setCurrentUtterance('');
   };
 
   useEffect(() => {
@@ -236,16 +252,6 @@ export default function LiveTranscription() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  // ------------------ Manual send (optional) ------------------
-  const sendMessage = () => {
-    const msg = socketMessage.trim();
-    if (!msg) return;
-    // Show user message
-    setConversation((prev) => [...prev, { role: 'user', text: msg }]);
-    sendToServer(msg);
-    setSocketMessage('');
-  };
 
   // ------------------ UI ------------------
   return (
@@ -271,18 +277,6 @@ export default function LiveTranscription() {
 
       <hr style={{ margin: '1.5rem 0' }} />
 
-      {/* WebSocket controls */}
-      <h3>WebSocket Connection</h3>
-      <div style={{ display: 'flex', gap: '0.5rem' }}>
-        <button onClick={ensureSocketConnected} disabled={socketIsOpen()}>
-          Connect WebSocket
-        </button>
-        <button onClick={closeSocket} disabled={!socketIsOpen()}>
-          Close WebSocket
-        </button>
-      </div>
-      <p>Status: {socketIsOpen() ? '🟢 Connected' : '🔴 Disconnected'}</p>
-
       {/* Conversation */}
       <h3>Conversation</h3>
       <div style={{ border: '1px solid #ccc', padding: '0.75rem', borderRadius: 6, minHeight: 100 }}>
@@ -295,21 +289,6 @@ export default function LiveTranscription() {
             </p>
           ))
         )}
-      </div>
-
-      {/* Manual message sender */}
-      <div style={{ marginTop: '1rem', display: 'flex', gap: '0.5rem' }}>
-        <input
-          type="text"
-          value={socketMessage}
-          onChange={(e) => setSocketMessage(e.target.value)}
-          placeholder="Type a message"
-          style={{ flex: 1, padding: '0.5rem' }}
-          disabled={!socketIsOpen()}
-        />
-        <button onClick={sendMessage} disabled={!socketIsOpen() || !socketMessage.trim()}>
-          Send
-        </button>
       </div>
     </div>
   );
