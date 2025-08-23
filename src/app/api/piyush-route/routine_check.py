@@ -1,3 +1,5 @@
+from fastapi import FastAPI
+import uvicorn
 import os
 import asyncio
 import websockets
@@ -10,6 +12,9 @@ from session_prompt import template
 from dotenv import load_dotenv
 
 load_dotenv()  # Load environment variables from .env file
+
+# Initialize FastAPI app after loading env and LLM
+app = FastAPI()
 
 # Set your GROQ_API_KEY from environment variables
 groq_api_key = os.getenv("GROQ_API_KEY")
@@ -27,6 +32,12 @@ llm = ChatGroq(
 summary_prompt = PromptTemplate(input_variables=["chat_history"], template=summary_template)
 summary_chain = LLMChain(llm=llm, prompt=summary_prompt)
 prompt = PromptTemplate(input_variables=["chat_history", "input"], template=template)
+
+# FastAPI placeholder route
+@app.get("/ping")
+async def ping():
+    return {"message": "pong"}
+
 # This is the core handler for each WebSocket connection
 async def socratic_chatbot_handler(websocket):
     """
@@ -50,7 +61,8 @@ async def socratic_chatbot_handler(websocket):
             if "EXIT" in message.strip().upper():
                 chat_history = memory.load_memory_variables({})["chat_history"]
                 print(f"Final chat history for {websocket.remote_address}:\n{chat_history}")
-                if chat_history:  # Only summarize if there was a conversation
+                if chat_history: 
+                    pass # Only summarize if there was a conversation
                     summary = await summary_chain.ainvoke({"chat_history": chat_history})
                     summary_text = summary["text"]
                     await websocket.send(summary_text)
@@ -77,19 +89,29 @@ async def socratic_chatbot_handler(websocket):
     finally:
         print(f"Connection to {websocket.remote_address} closed.")
 
-# Main function to start the WebSocket server
-async def main():
-    """Starts the WebSocket server."""
-    # Start the server on localhost, port 5001.
-    # The handler function is the `socratic_chatbot_handler`.
+
+# Helper async function to start the websocket server
+async def start_websocket_server():
     server = await websockets.serve(
-        socratic_chatbot_handler, 
-        "0.0.0.0", 
+        socratic_chatbot_handler,
+        "0.0.0.0",
         5001
     )
     print("WebSocket server started on ws://0.0.0.0:5001")
-    # This keeps the server running until it's manually stopped
     await server.wait_closed()
+
+# Helper async function to start FastAPI server
+async def start_fastapi_server():
+    config = uvicorn.Config(app, host="0.0.0.0", port=8000, log_level="info")
+    server = uvicorn.Server(config)
+    await server.serve()
+
+# Main function to run both servers concurrently
+async def main():
+    await asyncio.gather(
+        start_websocket_server(),
+        start_fastapi_server()
+    )
 
 if __name__ == "__main__":
     # Run the main async function to start the server
