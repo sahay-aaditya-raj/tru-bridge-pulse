@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { createClient, LiveTranscriptionEvents } from '@deepgram/sdk';
 import { useAuth } from '@/hooks/useAuth';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import SiriAnimation from '../chat_avatar/line_animation';
@@ -19,7 +20,7 @@ export default function LiveTranscription() {
   const [hasIntroduced, setHasIntroduced] = useState(false);
 
   // Auth integration
-  const { user, loading, isAuthenticated } = useAuth();
+  const { user, loading, logout, isAuthenticated } = useAuth();
   const router = useRouter();
 
   // Auth check - redirect if not authenticated
@@ -28,6 +29,11 @@ export default function LiveTranscription() {
       router.push('/auth/login');
     }
   }, [isAuthenticated, loading, router]);
+
+  const handleLogout = async () => {
+    await logout();
+    router.push('/');
+  };
 
   // Send introduction message when WebSocket connects
   const sendIntroductionMessage = () => {
@@ -662,9 +668,6 @@ export default function LiveTranscription() {
     );
   }
 
-  // ------------------ UI ------------------
-  // Thematic dark mode and animation when transcribing
-  const showThematic = isTranscribing;
   // Caption: current speech (user or bot)
   let captionText = '';
   if (isBotSpeaking && conversation.length > 0) {
@@ -676,234 +679,280 @@ export default function LiveTranscription() {
   }
 
   return (
-    <main className={showThematic ? 'min-h-screen bg-black text-white flex flex-col items-center justify-center' : 'min-h-screen bg-gradient-to-br from-cyan-50 via-blue-50 to-emerald-50'}>
-      {!showThematic && (
-        <div className="mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:px-8">
-          {/* Header with user info */}
-          <header className="mb-8">
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight bg-gradient-to-r from-emerald-600 to-blue-600 bg-clip-text text-transparent">
-                  Live Transcription
-                </h1>
-                <p className="mt-2 text-lg sm:text-xl text-muted-foreground">
-                  Welcome, {user.name}! Press Start to begin your conversation.
-                </p>
-              </div>
-              <div className="text-right">
-                <Card className="bg-white/80 backdrop-blur-sm">
-                  <CardContent className="p-4">
-                    <div className="text-sm text-muted-foreground mb-1">Logged in as:</div>
-                    <div className="font-semibold">{user.name}</div>
-                    <div className="text-sm text-muted-foreground">@{user.username}</div>
-                  </CardContent>
-                </Card>
-              </div>
-            </div>
-          </header>
-          
-          <section className="mb-8">
-            <div className="flex flex-wrap items-center gap-3">
+    <div className="min-h-screen bg-gradient-to-br from-cyan-50 via-blue-50 to-emerald-50">
+      {/* Header */}
+      <header className="bg-gradient-to-r from-emerald-400 via-cyan-400 to-blue-400 shadow-lg">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center py-6">
+            <Link href="/" className="text-white hover:text-blue-100 transition-colors">
+              <h1 className="text-2xl font-bold">TruBridge Pulse</h1>
+            </Link>
+            <nav className="flex items-center space-x-4">
               <Button
-                onClick={startTranscription}
-                disabled={isTranscribing}
-                size="lg"
-                className="inline-flex items-center gap-2 text-lg"
-                aria-pressed={isTranscribing}
+                asChild
+                variant="ghost"
+                className="text-white hover:text-blue-100 hover:bg-white/20"
               >
-                <span aria-hidden>🎙️</span>
-                {isTranscribing ? 'Transcription Active' : 'Start Transcription'}
+                <Link href="/">Home</Link>
               </Button>
-              
-              {isTranscribing && (
-                <Button
-                  onClick={stopTranscription}
-                  variant="destructive"
-                  size="lg"
-                  className="inline-flex items-center gap-2 text-lg"
-                >
-                  <span aria-hidden>🛑</span>
-                  Stop Transcription
-                </Button>
-              )}
-              
               <Button
-                onClick={() => router.push('/dashboard')}
+                asChild
+                variant="ghost"
+                className="text-white hover:text-blue-100 hover:bg-white/20"
+              >
+                <Link href="/dashboard">Dashboard</Link>
+              </Button>
+              <Button
+                asChild
+                variant="ghost"
+                className="text-white hover:text-blue-100 hover:bg-white/20"
+              >
+                <Link href="/profile">Profile</Link>
+              </Button>
+              <Button
+                onClick={handleLogout}
                 variant="outline"
-                size="lg"
-                className="inline-flex items-center gap-2 text-lg"
+                className="bg-white text-red-600 hover:bg-red-50 border-white"
               >
-                <span aria-hidden>📊</span>
-                Dashboard
+                Logout
               </Button>
-            </div>
-            
-            {/* Introduction status */}
-            {isTranscribing && (
-              <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                <div className="flex items-center">
-                  <div className="flex-shrink-0">
-                    {hasIntroduced ? (
-                      <svg className="h-5 w-5 text-green-400" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                      </svg>
-                    ) : (
-                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
-                    )}
-                  </div>
-                  <div className="ml-3">
-                    <p className="text-sm text-blue-800">
-                      {hasIntroduced 
-                        ? `✅ Introduced as ${user.name} (${user.username}, ${user.age} years old, ${user.gender})`
-                        : '🔄 Sending introduction to the bot...'
-                      }
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
-            
-            {error && (
-              <div className="mt-4 rounded-xl border-l-4 border-red-600 bg-red-50 p-4 text-red-800">
-                <p className="text-lg font-semibold">Error</p>
-                <p className="mt-1 text-lg leading-relaxed">{error}</p>
-              </div>
-            )}
-          </section>
-          {/* Conversation */}
-          <section aria-labelledby="conversation-title">
-            <h3 id="conversation-title" className="text-2xl font-bold">
-              Conversation
-            </h3>
-            <div className="mt-4 rounded-2xl border border-gray-200 bg-white shadow-sm">
-              <div className="max-h-80 overflow-auto p-5" aria-live="polite" role="log">
-                {conversation.length === 0 ? (
-                  <p className="text-lg text-gray-600">No messages yet</p>
-                ) : (
-                  <ul className="space-y-3" role="list">
-                    {conversation.map((m, i) => (
-                      <li key={i} className="text-xl leading-relaxed">
-                        <span
-                          className={
-                            'mr-2 inline-flex items-center rounded-full px-3 py-1 text-sm font-semibold ' +
-                            (m.role === 'user'
-                              ? 'bg-emerald-100 text-emerald-800'
-                              : m.role === 'bot'
-                              ? 'bg-indigo-100 text-indigo-800'
-                              : 'bg-gray-200 text-gray-800')
-                          }
-                        >
-                          {m.role === 'user' ? 'You' : m.role === 'bot' ? 'Bot' : 'System'}
-                        </span>
-                        <span>{m.text}</span>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-                <div ref={convoEndRef} />
-              </div>
-            </div>
-          </section>
+            </nav>
+          </div>
         </div>
-      )}
-      {showThematic && (
-        <>
-          {/* Top header with user info and controls */}
-          <div className="fixed top-0 left-0 w-full p-4 bg-black/90 backdrop-blur-sm border-b border-gray-800 z-10">
-            <div className="flex items-center justify-between max-w-6xl mx-auto">
-              <div className="flex items-center space-x-4">
-                <div className="text-white">
-                  <div className="font-semibold">{user.name}</div>
-                  <div className="text-sm text-gray-400">@{user.username}</div>
-                </div>
-                {hasIntroduced && (
-                  <div className="flex items-center text-green-400 text-sm">
-                    <svg className="h-4 w-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                    </svg>
-                    Introduced
-                  </div>
-                )}
-              </div>
-              
-              <div className="flex items-center space-x-3">
-                <button
-                  onClick={stopTranscription}
-                  className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg transition-colors text-sm font-medium"
-                >
-                  Stop Session
-                </button>
-                <button
-                  onClick={() => {
-                    stopTranscription();
-                    router.push('/dashboard');
-                  }}
-                  className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors text-sm font-medium"
-                >
-                  Dashboard
-                </button>
-              </div>
-            </div>
+      </header>
+
+      {/* Main Content */}
+      <main className="max-w-7xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
+        <div className="fade-in">
+          {/* Welcome Section */}
+          <div className="mb-8">
+            <h2 className="text-3xl font-bold bg-gradient-to-r from-emerald-600 to-blue-600 bg-clip-text text-transparent mb-2">
+              Live Speech to Text
+            </h2>
+            <p className="text-muted-foreground">
+              Welcome, {user.name}! Start a conversation with our AI assistant.
+            </p>
           </div>
 
-          {/* Siri-style bar animation moved up by 1/7th and increased size */}
-          <div className="flex flex-col items-center justify-start w-full h-full" style={{ minHeight: '60vh', paddingTop: '14.2857vh' }}>
-            <div className="flex justify-center items-center" style={{ height: 420 }}>
-              <SiriAnimation
-                amplitude={isBotSpeaking ? 2.5 : (!silence ? 2.5 : 1)}
-                speed={isBotSpeaking || !silence ? 0.15 : 0.05}
-                width={900}
-                height={400}
-              />
-            </div>
-          </div>
-          {/* Chat history at bottom, padded 1/6th left/right */}
-          <div className="fixed bottom-0 left-0 w-full pb-6" style={{ paddingLeft: '16.6667vw', paddingRight: '16.6667vw' }}>
-            <div className="max-h-64 overflow-auto rounded-2xl border border-gray-800 bg-black/80 shadow-lg p-5" aria-live="polite" role="log">
-              {conversation.length === 0 ? (
-                <p className="text-lg text-gray-400">No messages yet</p>
-              ) : (
-                <ul className="space-y-3" role="list">
-                  {conversation.map((m, i) => (
-                    <li key={i} className="text-xl leading-relaxed">
-                      <span
-                        className={
-                          'mr-2 inline-flex items-center rounded-full px-3 py-1 text-sm font-semibold ' +
-                          (m.role === 'user'
-                            ? 'bg-emerald-800 text-white'
-                            : m.role === 'bot'
-                            ? 'bg-indigo-800 text-white'
-                            : 'bg-gray-700 text-white')
+          {/* Controls Section */}
+          <Card className="mb-8">
+            <CardHeader>
+              <CardTitle>Voice Interaction Controls</CardTitle>
+              <CardDescription>
+                Start your conversation with the AI assistant
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-wrap items-center gap-3">
+                <Button
+                  onClick={startTranscription}
+                  disabled={isTranscribing}
+                  size="lg"
+                  className="inline-flex items-center gap-2"
+                >
+                  <span aria-hidden>🎙️</span>
+                  {isTranscribing ? 'Recording Active' : 'Start Recording'}
+                </Button>
+                
+                {isTranscribing && (
+                  <Button
+                    onClick={stopTranscription}
+                    variant="destructive"
+                    size="lg"
+                    className="inline-flex items-center gap-2"
+                  >
+                    <span aria-hidden>🛑</span>
+                    Stop Recording
+                  </Button>
+                )}
+              </div>
+
+              {/* Status Messages */}
+              {isTranscribing && (
+                <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                  <div className="flex items-center">
+                    <div className="flex-shrink-0">
+                      {hasIntroduced ? (
+                        <svg className="h-5 w-5 text-green-400" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                        </svg>
+                      ) : (
+                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
+                      )}
+                    </div>
+                    <div className="ml-3">
+                      <p className="text-sm text-blue-800">
+                        {hasIntroduced 
+                          ? `✅ Connected as ${user.name}`
+                          : '🔄 Connecting to AI assistant...'
                         }
-                      >
-                        {m.role === 'user' ? 'You' : m.role === 'bot' ? 'Bot' : 'System'}
-                      </span>
-                      <span>{m.text}</span>
-                    </li>
-                  ))}
-                  {/* Typing indicator: shows current utterance at the bottom */}
-                  {isTranscribing && !isBotSpeaking && !silence && (
-                    <li className="text-xl leading-relaxed text-gray-300">
-                      <span className="mr-2 inline-flex items-center rounded-full px-3 py-1 text-sm font-semibold bg-emerald-800 text-white">
-                        You
-                      </span>
-                      <span className="italic">
-                        {currentUtterance || 'Listening'}
-                      </span>
-                      <span className="inline-flex items-center gap-1 ml-2 align-middle">
-                        <span className="w-2 h-2 rounded-full bg-emerald-400 animate-bounce" />
-                        <span className="w-2 h-2 rounded-full bg-emerald-400 animate-bounce" style={{ animationDelay: '0.15s' }} />
-                        <span className="w-2 h-2 rounded-full bg-emerald-400 animate-bounce" style={{ animationDelay: '0.3s' }} />
-                      </span>
-                    </li>
-                  )}
-                </ul>
+                      </p>
+                    </div>
+                  </div>
+                </div>
               )}
-              <div ref={convoEndRef} />
+
+              {error && (
+                <div className="mt-4 rounded-lg border-l-4 border-red-600 bg-red-50 p-4 text-red-800">
+                  <p className="font-semibold">Error</p>
+                  <p className="mt-1">{error}</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Split Layout for Active Session */}
+          {isTranscribing && (
+            <div className="grid lg:grid-cols-2 gap-8 mb-8">
+              {/* Left Side - Siri Animation and Current Speech */}
+              <Card className="bg-black text-white border-gray-800">
+                <CardContent className="p-6">
+                  {/* Circular Container for Animation */}
+                  <div className="flex justify-center items-center mb-6">
+                    <div 
+                      className="relative bg-gradient-to-br from-blue-900 to-purple-900 rounded-full border-4 border-blue-500/30 shadow-2xl overflow-hidden"
+                      style={{ width: 300, height: 300 }}
+                    >
+                      {/* Animation positioned in center of circle */}
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <SiriAnimation
+                          amplitude={isBotSpeaking ? 2.5 : (!silence ? 2.5 : 1)}
+                          speed={isBotSpeaking || !silence ? 0.15 : 0.05}
+                          width={260}
+                          height={260}
+                        />
+                      </div>
+                      
+                      {/* Glowing ring effect */}
+                      <div className="absolute inset-0 rounded-full border-2 border-blue-400 animate-pulse opacity-50"></div>
+                    </div>
+                  </div>
+
+                  {/* Current Speech Display */}
+                  <div className="text-center">
+                    <div className="mb-2">
+                      <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-600 text-white">
+                        {isBotSpeaking ? '🤖 AI Assistant' : '🎙️ You'}
+                      </span>
+                    </div>
+                    {captionText ? (
+                      <p className="text-lg text-gray-300 italic min-h-[3rem] flex items-center justify-center">
+                        &ldquo;{captionText}&rdquo;
+                      </p>
+                    ) : (
+                      <p className="text-gray-400 min-h-[3rem] flex items-center justify-center">
+                        {silence ? 'Listening...' : 'Processing...'}
+                      </p>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Right Side - Conversation History */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Conversation History</CardTitle>
+                  <CardDescription>
+                    Your conversation with the AI assistant
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="h-96 overflow-auto">
+                    {conversation.length === 0 ? (
+                      <p className="text-muted-foreground text-center py-8">
+                        No conversation yet. Start recording to begin!
+                      </p>
+                    ) : (
+                      <div className="space-y-4">
+                        {conversation.map((message, index) => (
+                          <div
+                            key={index}
+                            className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                          >
+                            <div
+                              className={`max-w-xs px-4 py-3 rounded-lg ${
+                                message.role === 'user'
+                                  ? 'bg-blue-500 text-white rounded-br-none'
+                                  : 'bg-gray-200 text-gray-900 rounded-bl-none'
+                              }`}
+                            >
+                              <div className="flex items-center gap-2 mb-1">
+                                <span className="text-xs font-medium opacity-70">
+                                  {message.role === 'user' ? 'You' : 'AI Assistant'}
+                                </span>
+                              </div>
+                              <p className="text-sm">{message.text}</p>
+                            </div>
+                          </div>
+                        ))}
+                        
+                        {/* Typing indicator */}
+                        {currentUtterance && !silence && (
+                          <div className="flex justify-end">
+                            <div className="max-w-xs px-4 py-3 rounded-lg bg-blue-400 text-white rounded-br-none">
+                              <div className="flex items-center gap-2 mb-1">
+                                <span className="text-xs font-medium opacity-70">You (typing...)</span>
+                              </div>
+                              <p className="text-sm italic">{currentUtterance}</p>
+                              <div className="flex space-x-1 mt-2">
+                                <div className="w-2 h-2 rounded-full bg-white animate-bounce" />
+                                <div className="w-2 h-2 rounded-full bg-white animate-bounce" style={{ animationDelay: '0.1s' }} />
+                                <div className="w-2 h-2 rounded-full bg-white animate-bounce" style={{ animationDelay: '0.2s' }} />
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    <div ref={convoEndRef} />
+                  </div>
+                </CardContent>
+              </Card>
             </div>
-          </div>
-        </>
-      )}
-    </main>
+          )}
+
+          {/* Conversation History when not transcribing */}
+          {!isTranscribing && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Conversation History</CardTitle>
+                <CardDescription>
+                  Your conversation with the AI assistant
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="max-h-80 overflow-auto">
+                  {conversation.length === 0 ? (
+                    <p className="text-muted-foreground text-center py-8">
+                      No conversation yet. Start recording to begin!
+                    </p>
+                  ) : (
+                    <div className="space-y-4">
+                      {conversation.map((message, index) => (
+                        <div
+                          key={index}
+                          className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                        >
+                          <div
+                            className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
+                              message.role === 'user'
+                                ? 'bg-blue-500 text-white'
+                                : 'bg-gray-200 text-gray-900'
+                            }`}
+                          >
+                            <p className="text-sm">{message.text}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <div ref={convoEndRef} />
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      </main>
+    </div>
   );
 }
