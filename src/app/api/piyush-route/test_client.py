@@ -1,30 +1,32 @@
-# test_client.py
-from routine_check import socketio, app
+# testing.py
+import asyncio
+import websockets
 
-# Create a test client
-test_client = socketio.test_client(app)
+async def test_chat():
+    uri = "ws://localhost:5001"
+    async with websockets.connect(uri) as websocket:
+        # Print the welcome message
+        welcome = await websocket.recv()
+        print(f"🤖 Bot: {welcome}")
 
-def get_bot_messages():
-    """Helper to fetch bot replies nicely."""
-    received = test_client.get_received()
-    messages = []
-    for packet in received:
-        if packet["name"] == "message":
-            messages.append(packet["args"])
-    return messages
+        # Interactive loop
+        while True:
+            user_input = input("🧑 You: ")
+            if user_input.lower() in ["exit", "quit"]:
+                print("👋 Ending chat...")
+                break
 
-# Print the initial welcome message
-for msg in get_bot_messages():
-    print(f"🤖 Bot: {msg}")
+            await websocket.send(user_input)
 
-# Interactive loop
-while True:
-    user_input = input("🧑 You: ")
-    if user_input.lower() in ["exit", "quit"]:
-        break
-    test_client.emit("message", user_input)
-    for msg in get_bot_messages():
-        print(f"🤖 Bot: {msg}")
-    if "EXIT" in msg:
-        print(f"Exiting the chat....")
-        break
+            try:
+                response = await websocket.recv()
+                print(f"🤖 Bot: {response}")
+                if "EXIT" in response:
+                    print("Exiting the chat....")
+                    break
+            except websockets.exceptions.ConnectionClosed:
+                print("⚠️ Connection closed by server.")
+                break
+
+if __name__ == "__main__":
+    asyncio.run(test_chat())

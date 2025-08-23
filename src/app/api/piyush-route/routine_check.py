@@ -51,8 +51,32 @@ User's latest message: {input}
 Your response:
 """
 
-prompt = PromptTemplate(input_variables=["chat_history", "input"], template=template)
 
+summary_template = """
+You are a medical assistant AI.
+Summarize the following conversation between a patient and a health checkup bot
+into a concise, structured report for a doctor to quickly review.
+
+Conversation:
+{chat_history}
+
+Format the summary with these sections if available:
+- Demographics (age, gender)
+- Sleep
+- Diet
+- Exercise
+- Stress
+- Lifestyle habits
+- Medical history
+- Current symptoms
+- Other observations
+
+Keep it short, factual, and easy to scan.
+"""
+
+summary_prompt = PromptTemplate(input_variables=["chat_history"], template=summary_template)
+summary_chain = LLMChain(llm=llm, prompt=summary_prompt)
+prompt = PromptTemplate(input_variables=["chat_history", "input"], template=template)
 # This is the core handler for each WebSocket connection
 async def socratic_chatbot_handler(websocket):
     """
@@ -87,13 +111,27 @@ async def socratic_chatbot_handler(websocket):
             # The response object contains the generated text
             response_text = response['text']
             print(f"Generated response: {response_text}")
-
+            if "EXIT" in response_text.strip().upper():
+                chat_history = memory.load_memory_variables({})["chat_history"]
+                if chat_history:  # Only summarize if there was a conversation
+                    summary = await summary_chain.ainvoke({"chat_history": chat_history})
+                    summary_text = summary["text"]
+                    await websocket.send(summary_text)
+                await websocket.send("EXITING.....")
+                print(f"Conversation ended for {websocket.remote_address}. Closing connection.")
+                break
             # Send the response back to the client
             await websocket.send(response_text)
             print(f"Sent response to {websocket.remote_address}")
             
             # If the model signals the conversation is over, we can close the connection
             if response_text.strip().upper() == "EXIT":
+                chat_history = memory.load_memory_variables({})["chat_history"]
+
+                if chat_history:  # Only summarize if there was a conversation
+                    summary = await summary_chain.ainvoke({"chat_history": chat_history})
+                    summary_text = summary["text"]
+                    await websocket.send(summary_text)
                 print(f"Conversation ended for {websocket.remote_address}. Closing connection.")
                 break # Exit the loop and close the connection
                 
@@ -102,7 +140,6 @@ async def socratic_chatbot_handler(websocket):
     except Exception as e:
         print(f"An error occurred with connection {websocket.remote_address}: {e}")
     finally:
-        # This block is executed when the connection is closed
         print(f"Connection to {websocket.remote_address} closed.")
 
 # Main function to start the WebSocket server
