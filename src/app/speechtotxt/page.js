@@ -371,32 +371,32 @@ export default function LiveTranscription() {
         const t = data?.channel?.alternatives?.[0]?.transcript?.trim() ?? '';
         if (!t) return;
 
-        // Check if this is a final result or interim
         const isFinal = data?.is_final ?? false;
         
         if (isFinal) {
-          // For final results, accumulate with previous utterance
+          // For final results, this is the complete utterance for this segment
+          console.log('📝 Final transcript:', t);
           setCurrentUtterance(prev => {
-            const accumulated = prev ? prev + ' ' + t : t;
-            currentUtteranceRef.current = accumulated;
-            return accumulated;
+            // If we have previous content, append with space, otherwise use new content
+            const newUtterance = prev ? prev + ' ' + t : t;
+            currentUtteranceRef.current = newUtterance;
+            return newUtterance;
           });
         } else {
-          // For interim results, show the current transcript but don't lose previous parts
-          setCurrentUtterance(prev => {
-            // Keep any previous final parts and show current interim
-            const baseUtterance = currentUtteranceRef.current || '';
-            const display = baseUtterance ? baseUtterance + ' ' + t : t;
-            return display;
-          });
+          // For interim results, just show the current transcript without accumulating
+          console.log('📝 Interim transcript:', t);
+          setCurrentUtterance(t);
+          // Don't update the ref for interim results
         }
         
         setSilence(false);
 
+        // Reset silence timer on any transcript (interim or final)
         if (silenceTimeoutRef.current) {
           clearTimeout(silenceTimeoutRef.current);
           silenceTimeoutRef.current = null;
         }
+        
         silenceTimeoutRef.current = setTimeout(() => {
           const finalUtterance = (currentUtteranceRef.current || '').trim();
           console.log('⏱️ Silence detected. Final utterance:', finalUtterance);
@@ -407,7 +407,7 @@ export default function LiveTranscription() {
             sendToServer(finalUtterance);
           }
           setCurrentUtterance('');
-          currentUtteranceRef.current = ''; // Reset the ref as well
+          currentUtteranceRef.current = ''; // Reset the ref
           setSilence(true);
         }, 1500);
       });
