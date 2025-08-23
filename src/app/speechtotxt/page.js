@@ -51,14 +51,6 @@ export default function LiveTranscription() {
   const ttsQueueRef = useRef([]);
   const speakingRef = useRef(false);
   const ttsAbortControllersRef = useRef(new Set());
-  
-  // Enhanced TTS rate limiting and error handling
-  const ttsRequestCacheRef = useRef(new Map()); // Cache for deduplication
-  const ttsRetryCountRef = useRef(new Map()); // Track retry attempts
-  const ttsLastRequestTimeRef = useRef(0); // Last request timestamp
-  const TTS_MIN_INTERVAL = 500; // Minimum time between requests (ms)
-  const TTS_MAX_RETRIES = 3; // Maximum retry attempts
-  const TTS_RETRY_DELAYS = [1000, 2000, 4000]; // Exponential backoff delays
 
   const TTS_PLAYBACK_RATE = 1.00;
 
@@ -147,112 +139,22 @@ export default function LiveTranscription() {
     ttsQueueRef.current.length = 0;
     speakingRef.current = false;
     setIsBotSpeaking(false);
-    
-    // Clear TTS cache and retry counters
-    ttsRequestCacheRef.current.clear();
-    ttsRetryCountRef.current.clear();
   };
 
-  // Enhanced TTS synthesis with rate limiting and retry logic
-  const synthesizeToUrl = async (text, retryCount = 0) => {
-    const normalizedText = String(text || '').trim();
-    if (!normalizedText) return null;
-
-    // Check cache first to avoid duplicate requests
-    if (ttsRequestCacheRef.current.has(normalizedText)) {
-      console.log('🔄 Using cached TTS result for:', normalizedText.substring(0, 50));
-      return ttsRequestCacheRef.current.get(normalizedText);
-    }
-
-    // Rate limiting: ensure minimum interval between requests
-    const now = Date.now();
-    const timeSinceLastRequest = now - ttsLastRequestTimeRef.current;
-    if (timeSinceLastRequest < TTS_MIN_INTERVAL) {
-      const delay = TTS_MIN_INTERVAL - timeSinceLastRequest;
-      console.log(`⏳ Rate limiting: waiting ${delay}ms before TTS request`);
-      await new Promise(resolve => setTimeout(resolve, delay));
-    }
-
+  // Prefetch TTS and return a blob URL (starts immediately, plays later)
+  const synthesizeToUrl = async (text) => {
     const ctrl = new AbortController();
     ttsAbortControllersRef.current.add(ctrl);
-    
     try {
-      ttsLastRequestTimeRef.current = Date.now();
-      
       const res = await fetch('/api/tts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: normalizedText }),
+        body: JSON.stringify({ text }),
         signal: ctrl.signal,
       });
-
-      if (res.status === 429) {
-        // Rate limited - implement exponential backoff
-        if (retryCount < TTS_MAX_RETRIES) {
-          const delay = TTS_RETRY_DELAYS[retryCount] || 4000;
-          console.log(`🚦 Rate limited. Retrying in ${delay}ms (attempt ${retryCount + 1}/${TTS_MAX_RETRIES})`);
-          
-          await new Promise(resolve => setTimeout(resolve, delay));
-          ttsAbortControllersRef.current.delete(ctrl);
-          return synthesizeToUrl(normalizedText, retryCount + 1);
-        } else {
-          throw new Error('Rate limit exceeded. Max retries reached.');
-        }
-      }
-
-      if (res.status === 503) {
-        // Server busy - implement backoff
-        if (retryCount < TTS_MAX_RETRIES) {
-          const delay = TTS_RETRY_DELAYS[retryCount] || 4000;
-          console.log(`🏗️ Server busy. Retrying in ${delay}ms (attempt ${retryCount + 1}/${TTS_MAX_RETRIES})`);
-          
-          await new Promise(resolve => setTimeout(resolve, delay));
-          ttsAbortControllersRef.current.delete(ctrl);
-          return synthesizeToUrl(normalizedText, retryCount + 1);
-        } else {
-          throw new Error('Server is busy. Please try again later.');
-        }
-      }
-
-      if (!res.ok) {
-        const errorText = await res.text().catch(() => 'Unknown error');
-        throw new Error(`TTS request failed: ${res.status} - ${errorText}`);
-      }
-
+      if (!res.ok) throw new Error('TTS request failed');
       const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      
-      // Cache the result to avoid duplicate requests
-      ttsRequestCacheRef.current.set(normalizedText, url);
-      
-      // Clear retry count on success
-      ttsRetryCountRef.current.delete(normalizedText);
-      
-      console.log(`✅ TTS synthesis successful for: "${normalizedText.substring(0, 50)}${normalizedText.length > 50 ? '...' : ''}"`);
-      return url;
-
-    } catch (error) {
-      console.error('TTS synthesis error:', error);
-      
-      if (error.name === 'AbortError') {
-        console.log('🛑 TTS request aborted');
-        return null;
-      }
-
-      // For network errors or other issues, also retry with backoff
-      if (retryCount < TTS_MAX_RETRIES && !error.message.includes('Max retries reached')) {
-        const delay = TTS_RETRY_DELAYS[retryCount] || 4000;
-        console.log(`🔄 TTS error. Retrying in ${delay}ms (attempt ${retryCount + 1}/${TTS_MAX_RETRIES}): ${error.message}`);
-        
-        await new Promise(resolve => setTimeout(resolve, delay));
-        ttsAbortControllersRef.current.delete(ctrl);
-        return synthesizeToUrl(normalizedText, retryCount + 1);
-      }
-
-      // Show user-friendly error after all retries exhausted
-      setError(`Voice synthesis failed: ${error.message}. Please try again.`);
-      return null;
-      
+      return URL.createObjectURL(blob);
     } finally {
       ttsAbortControllersRef.current.delete(ctrl);
     }
@@ -281,53 +183,32 @@ export default function LiveTranscription() {
     speakingRef.current = true;
     console.log('🤖 Bot speaking: queue playback started.');
     beginBotSpeaking();
-    
     try {
       // Play all queued items back-to-back with mic muted
       while (ttsQueueRef.current.length) {
         const next = ttsQueueRef.current.shift();
         try {
           const url = await next.urlPromise;
-          if (url) { // Only play if URL was successfully created
-            await playUrl(url);
-          } else {
-            console.warn('⚠️ Skipping TTS playback due to synthesis failure');
-          }
+          await playUrl(url);
         } catch (e) {
           console.warn('TTS playback failed:', e);
-          // Continue with next item instead of breaking the entire queue
         }
       }
     } finally {
       speakingRef.current = false;
       endBotSpeaking();
       // If something queued while we were playing, process again
-      if (ttsQueueRef.current.length) {
-        setTimeout(processQueue, 100); // Small delay to prevent overwhelming
-      }
+      if (ttsQueueRef.current.length) processQueue();
     }
   };
 
   const enqueueTTS = (text) => {
     const t = String(text || '').trim();
     if (!t) return;
-
-    // Check if we already have this text in the queue to avoid duplicates
-    const isDuplicate = ttsQueueRef.current.some(item => item.text === t);
-    if (isDuplicate) {
-      console.log('🔄 Skipping duplicate TTS request:', t.substring(0, 50));
-      return;
-    }
-
-    console.log('📝 Queuing TTS for:', t.substring(0, 50) + (t.length > 50 ? '...' : ''));
-    
     // Kick off fetch immediately; playback will await the promise
     const urlPromise = synthesizeToUrl(t);
     ttsQueueRef.current.push({ text: t, urlPromise });
-    
-    if (!speakingRef.current) {
-      processQueue();
-    }
+    if (!speakingRef.current) processQueue();
   };
 
   // Split long text into short speakable chunks (sentences, then max length)
@@ -519,23 +400,28 @@ export default function LiveTranscription() {
         if (!t) return;
 
         const isFinal = data?.is_final ?? false;
-        
+
         if (isFinal) {
-          // For final results, this is the complete utterance for this segment
+          // Accumulate only FINAL text into the ref
+          const newFinal = currentUtteranceRef.current
+            ? `${currentUtteranceRef.current} ${t}`.trim()
+            : t;
+
           console.log('📝 Final transcript:', t);
-          setCurrentUtterance(prev => {
-            // If we have previous content, append with space, otherwise use new content
-            const newUtterance = prev ? prev + ' ' + t : t;
-            currentUtteranceRef.current = newUtterance;
-            return newUtterance;
-          });
+          currentUtteranceRef.current = newFinal;
+
+          // Update display to the accumulated final text
+          setCurrentUtterance(newFinal);
         } else {
-          // For interim results, just show the current transcript without accumulating
+          // Show finals + current interim only in UI (do not update the ref)
+          const display = currentUtteranceRef.current
+            ? `${currentUtteranceRef.current} ${t}`.trim()
+            : t;
+
           console.log('📝 Interim transcript:', t);
-          setCurrentUtterance(t);
-          // Don't update the ref for interim results
+          setCurrentUtterance(display);
         }
-        
+
         setSilence(false);
 
         // Reset silence timer on any transcript (interim or final)
@@ -543,9 +429,13 @@ export default function LiveTranscription() {
           clearTimeout(silenceTimeoutRef.current);
           silenceTimeoutRef.current = null;
         }
-        
+
         silenceTimeoutRef.current = setTimeout(() => {
-          const finalUtterance = (currentUtteranceRef.current || '').trim();
+          // Prefer finalized text; fall back to whatever is displayed (interim) if no final arrived
+          const refValue = (currentUtteranceRef.current || '').trim();
+          const displayValue = (currentUtterance || '').trim();
+          const finalUtterance = refValue || displayValue;
+
           console.log('⏱️ Silence detected. Final utterance:', finalUtterance);
 
           if (finalUtterance.length > 0) {
@@ -553,8 +443,10 @@ export default function LiveTranscription() {
             setConversation((prev) => [...prev, { role: 'user', text: finalUtterance }]);
             sendToServer(finalUtterance);
           }
+
+          // Reset for next utterance
           setCurrentUtterance('');
-          currentUtteranceRef.current = ''; // Reset the ref
+          currentUtteranceRef.current = '';
           setSilence(true);
         }, 1500);
       });
@@ -701,8 +593,9 @@ export default function LiveTranscription() {
   };
 
   // Keep a ref mirror for currentUtterance to avoid stale closures
+  // Replace this effect so it no longer overwrites the ref with interim text
   useEffect(() => {
-    currentUtteranceRef.current = currentUtterance;
+    // No-op: currentUtteranceRef is now managed only on finals and resets
   }, [currentUtterance]);
 
   // Auto-scroll chat to the bottom when messages or the typing indicator change
@@ -843,38 +736,6 @@ export default function LiveTranscription() {
                     </p>
                   </div>
                 </div>
-              </div>
-            )}
-            
-            {/* TTS and system status */}
-            {isTranscribing && (
-              <div className="mt-4 space-y-3">
-                {/* TTS Queue Status */}
-                {(ttsQueueRef.current.length > 0 || isBotSpeaking) && (
-                  <div className="p-3 bg-purple-50 border border-purple-200 rounded-lg">
-                    <div className="flex items-center">
-                      <div className="flex-shrink-0">
-                        {isBotSpeaking ? (
-                          <div className="flex space-x-1">
-                            <div className="w-2 h-2 bg-purple-600 rounded-full animate-bounce"></div>
-                            <div className="w-2 h-2 bg-purple-600 rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></div>
-                            <div className="w-2 h-2 bg-purple-600 rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
-                          </div>
-                        ) : (
-                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-purple-600"></div>
-                        )}
-                      </div>
-                      <div className="ml-3">
-                        <p className="text-sm text-purple-800">
-                          {isBotSpeaking 
-                            ? '🔊 Bot is speaking...'
-                            : `📝 Processing voice synthesis (${ttsQueueRef.current.length} in queue)`
-                          }
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                )}
               </div>
             )}
             
