@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { createClient, LiveTranscriptionEvents } from '@deepgram/sdk';
+import { useAuth } from '@/hooks/useAuth';
+import { useRouter } from 'next/navigation';
 import SiriAnimation from '../chat_avatar/line_animation';
 
 export default function LiveTranscription() {
@@ -12,6 +14,26 @@ export default function LiveTranscription() {
   const [isTranscribing, setIsTranscribing] = useState(false);
   const [silence, setSilence] = useState(false);
   const [isBotSpeaking, setIsBotSpeaking] = useState(false);
+  const [hasIntroduced, setHasIntroduced] = useState(false);
+
+  // Auth integration
+  const { user, loading, isAuthenticated } = useAuth();
+  const router = useRouter();
+
+  // Auth check - redirect if not authenticated
+  useEffect(() => {
+    if (!loading && !isAuthenticated) {
+      router.push('/auth/login');
+    }
+  }, [isAuthenticated, loading, router]);
+
+  // Send introduction message when WebSocket connects
+  const sendIntroductionMessage = () => {
+    if (!user || hasIntroduced) return;
+    // Send to server
+    sendToServer(`name: "${user.name}", username: "${user.username}", age: ${user.age}, gender: ${user.gender}.`);
+    setHasIntroduced(true);
+  };
 
   const socketRef = useRef(null);
   const mediaRecorderRef = useRef(null);
@@ -29,8 +51,16 @@ export default function LiveTranscription() {
   const ttsQueueRef = useRef([]);
   const speakingRef = useRef(false);
   const ttsAbortControllersRef = useRef(new Set());
+  
+  // Enhanced TTS rate limiting and error handling
+  const ttsRequestCacheRef = useRef(new Map()); // Cache for deduplication
+  const ttsRetryCountRef = useRef(new Map()); // Track retry attempts
+  const ttsLastRequestTimeRef = useRef(0); // Last request timestamp
+  const TTS_MIN_INTERVAL = 500; // Minimum time between requests (ms)
+  const TTS_MAX_RETRIES = 3; // Maximum retry attempts
+  const TTS_RETRY_DELAYS = [1000, 2000, 4000]; // Exponential backoff delays
 
-  const TTS_PLAYBACK_RATE = 1.15;
+  const TTS_PLAYBACK_RATE = 1.00;
 
   // Mute/unmute mic while bot speaks
   const beginBotSpeaking = () => {
@@ -117,22 +147,112 @@ export default function LiveTranscription() {
     ttsQueueRef.current.length = 0;
     speakingRef.current = false;
     setIsBotSpeaking(false);
+    
+    // Clear TTS cache and retry counters
+    ttsRequestCacheRef.current.clear();
+    ttsRetryCountRef.current.clear();
   };
 
-  // Prefetch TTS and return a blob URL (starts immediately, plays later)
-  const synthesizeToUrl = async (text) => {
+  // Enhanced TTS synthesis with rate limiting and retry logic
+  const synthesizeToUrl = async (text, retryCount = 0) => {
+    const normalizedText = String(text || '').trim();
+    if (!normalizedText) return null;
+
+    // Check cache first to avoid duplicate requests
+    if (ttsRequestCacheRef.current.has(normalizedText)) {
+      console.log('🔄 Using cached TTS result for:', normalizedText.substring(0, 50));
+      return ttsRequestCacheRef.current.get(normalizedText);
+    }
+
+    // Rate limiting: ensure minimum interval between requests
+    const now = Date.now();
+    const timeSinceLastRequest = now - ttsLastRequestTimeRef.current;
+    if (timeSinceLastRequest < TTS_MIN_INTERVAL) {
+      const delay = TTS_MIN_INTERVAL - timeSinceLastRequest;
+      console.log(`⏳ Rate limiting: waiting ${delay}ms before TTS request`);
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+
     const ctrl = new AbortController();
     ttsAbortControllersRef.current.add(ctrl);
+    
     try {
+      ttsLastRequestTimeRef.current = Date.now();
+      
       const res = await fetch('/api/tts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text }),
+        body: JSON.stringify({ text: normalizedText }),
         signal: ctrl.signal,
       });
-      if (!res.ok) throw new Error('TTS request failed');
+
+      if (res.status === 429) {
+        // Rate limited - implement exponential backoff
+        if (retryCount < TTS_MAX_RETRIES) {
+          const delay = TTS_RETRY_DELAYS[retryCount] || 4000;
+          console.log(`🚦 Rate limited. Retrying in ${delay}ms (attempt ${retryCount + 1}/${TTS_MAX_RETRIES})`);
+          
+          await new Promise(resolve => setTimeout(resolve, delay));
+          ttsAbortControllersRef.current.delete(ctrl);
+          return synthesizeToUrl(normalizedText, retryCount + 1);
+        } else {
+          throw new Error('Rate limit exceeded. Max retries reached.');
+        }
+      }
+
+      if (res.status === 503) {
+        // Server busy - implement backoff
+        if (retryCount < TTS_MAX_RETRIES) {
+          const delay = TTS_RETRY_DELAYS[retryCount] || 4000;
+          console.log(`🏗️ Server busy. Retrying in ${delay}ms (attempt ${retryCount + 1}/${TTS_MAX_RETRIES})`);
+          
+          await new Promise(resolve => setTimeout(resolve, delay));
+          ttsAbortControllersRef.current.delete(ctrl);
+          return synthesizeToUrl(normalizedText, retryCount + 1);
+        } else {
+          throw new Error('Server is busy. Please try again later.');
+        }
+      }
+
+      if (!res.ok) {
+        const errorText = await res.text().catch(() => 'Unknown error');
+        throw new Error(`TTS request failed: ${res.status} - ${errorText}`);
+      }
+
       const blob = await res.blob();
-      return URL.createObjectURL(blob);
+      const url = URL.createObjectURL(blob);
+      
+      // Cache the result to avoid duplicate requests
+      ttsRequestCacheRef.current.set(normalizedText, url);
+      
+      // Clear retry count on success
+      ttsRetryCountRef.current.delete(normalizedText);
+      
+      console.log(`✅ TTS synthesis successful for: "${normalizedText.substring(0, 50)}${normalizedText.length > 50 ? '...' : ''}"`);
+      return url;
+
+    } catch (error) {
+      console.error('TTS synthesis error:', error);
+      
+      if (error.name === 'AbortError') {
+        console.log('🛑 TTS request aborted');
+        return null;
+      }
+
+      // For network errors or other issues, also retry with backoff
+      if (retryCount < TTS_MAX_RETRIES && !error.message.includes('Max retries reached')) {
+        const delay = TTS_RETRY_DELAYS[retryCount] || 4000;
+        console.log(`🔄 TTS error. Retrying in ${delay}ms (attempt ${retryCount + 1}/${TTS_MAX_RETRIES}): ${error.message}`);
+        
+        await new Promise(resolve => setTimeout(resolve, delay));
+        ttsAbortControllersRef.current.delete(ctrl);
+        return synthesizeToUrl(normalizedText, retryCount + 1);
+      }
+
+      // Show user-friendly error after all retries exhausted
+      setError(`Voice synthesis failed: ${error.message}. Please try again.`);
+      return null;
+      
     } finally {
       ttsAbortControllersRef.current.delete(ctrl);
     }
@@ -161,32 +281,53 @@ export default function LiveTranscription() {
     speakingRef.current = true;
     console.log('🤖 Bot speaking: queue playback started.');
     beginBotSpeaking();
+    
     try {
       // Play all queued items back-to-back with mic muted
       while (ttsQueueRef.current.length) {
         const next = ttsQueueRef.current.shift();
         try {
           const url = await next.urlPromise;
-          await playUrl(url);
+          if (url) { // Only play if URL was successfully created
+            await playUrl(url);
+          } else {
+            console.warn('⚠️ Skipping TTS playback due to synthesis failure');
+          }
         } catch (e) {
           console.warn('TTS playback failed:', e);
+          // Continue with next item instead of breaking the entire queue
         }
       }
     } finally {
       speakingRef.current = false;
       endBotSpeaking();
       // If something queued while we were playing, process again
-      if (ttsQueueRef.current.length) processQueue();
+      if (ttsQueueRef.current.length) {
+        setTimeout(processQueue, 100); // Small delay to prevent overwhelming
+      }
     }
   };
 
   const enqueueTTS = (text) => {
     const t = String(text || '').trim();
     if (!t) return;
+
+    // Check if we already have this text in the queue to avoid duplicates
+    const isDuplicate = ttsQueueRef.current.some(item => item.text === t);
+    if (isDuplicate) {
+      console.log('🔄 Skipping duplicate TTS request:', t.substring(0, 50));
+      return;
+    }
+
+    console.log('📝 Queuing TTS for:', t.substring(0, 50) + (t.length > 50 ? '...' : ''));
+    
     // Kick off fetch immediately; playback will await the promise
     const urlPromise = synthesizeToUrl(t);
     ttsQueueRef.current.push({ text: t, urlPromise });
-    if (!speakingRef.current) processQueue();
+    
+    if (!speakingRef.current) {
+      processQueue();
+    }
   };
 
   // Split long text into short speakable chunks (sentences, then max length)
@@ -292,6 +433,11 @@ export default function LiveTranscription() {
       socket.onopen = () => {
         console.log('✅ WebSocket connected');
         shouldKeepMicActiveRef.current = true; // Enable mic protection
+        
+        // Send introduction message automatically after connection
+        setTimeout(() => {
+          sendIntroductionMessage();
+        }, 500); // Small delay to ensure connection is stable
       };
 
       socket.onmessage = (event) => {
@@ -503,6 +649,13 @@ export default function LiveTranscription() {
   const startTranscription = async () => {
     if (isTranscribing) return;
 
+    // Check authentication before starting
+    if (!isAuthenticated || !user) {
+      setError('Please log in to use the speech-to-text feature.');
+      router.push('/auth/login');
+      return;
+    }
+
     setError('');
     try {
       ensureSocketConnected();
@@ -525,6 +678,9 @@ export default function LiveTranscription() {
     setError('');
     isClosingRef.current = true;
     shouldKeepMicActiveRef.current = false; // Allow mic shutdown
+
+    // Reset introduction state for next session
+    setHasIntroduced(false);
 
     // Stop mic/recorder and timers
     shutdownMic();
@@ -566,6 +722,36 @@ export default function LiveTranscription() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Loading screen for authentication check
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center gradient-bg">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
+          <p className="text-white text-lg">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Redirect message if not authenticated
+  if (!isAuthenticated || !user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center gradient-bg">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold text-white mb-4">Authentication Required</h2>
+          <p className="text-blue-100 mb-6">Please log in to use the speech-to-text feature.</p>
+          <button
+            onClick={() => router.push('/auth/login')}
+            className="btn-primary"
+          >
+            Go to Login
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   // ------------------ UI ------------------
   // Thematic dark mode and animation when transcribing
   const showThematic = isTranscribing;
@@ -583,14 +769,27 @@ export default function LiveTranscription() {
     <main className={showThematic ? 'min-h-screen bg-black text-white flex flex-col items-center justify-center' : 'min-h-screen bg-gray-50 text-gray-900'}>
       {!showThematic && (
         <div className="mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:px-8">
+          {/* Header with user info */}
           <header className="mb-8">
-            <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight">
-              Live Transcription
-            </h1>
-            <p className="mt-2 text-lg sm:text-xl text-gray-700">
-              Press Start, then speak. We’ll capture it and send it to your assistant.
-            </p>
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight gradient-text">
+                  Live Transcription
+                </h1>
+                <p className="mt-2 text-lg sm:text-xl text-gray-700">
+                  Welcome, {user.name}! Press Start to begin your conversation.
+                </p>
+              </div>
+              <div className="text-right">
+                <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+                  <div className="text-sm text-gray-600 mb-1">Logged in as:</div>
+                  <div className="font-semibold text-gray-900">{user.name}</div>
+                  <div className="text-sm text-gray-500">@{user.username}</div>
+                </div>
+              </div>
+            </div>
           </header>
+          
           <section className="mb-8">
             <div className="flex flex-wrap items-center gap-3">
               <button
@@ -600,9 +799,85 @@ export default function LiveTranscription() {
                 aria-pressed={isTranscribing}
               >
                 <span aria-hidden>🎙️</span>
-                Start Transcription
+                {isTranscribing ? 'Transcription Active' : 'Start Transcription'}
+              </button>
+              
+              {isTranscribing && (
+                <button
+                  onClick={stopTranscription}
+                  className="inline-flex items-center gap-2 rounded-xl bg-red-600 px-6 py-4 text-lg font-semibold text-white shadow-sm transition hover:bg-red-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-red-300"
+                >
+                  <span aria-hidden>🛑</span>
+                  Stop Transcription
+                </button>
+              )}
+              
+              <button
+                onClick={() => router.push('/dashboard')}
+                className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-6 py-4 text-lg font-semibold text-white shadow-sm transition hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300"
+              >
+                <span aria-hidden>📊</span>
+                Dashboard
               </button>
             </div>
+            
+            {/* Introduction status */}
+            {isTranscribing && (
+              <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <div className="flex items-center">
+                  <div className="flex-shrink-0">
+                    {hasIntroduced ? (
+                      <svg className="h-5 w-5 text-green-400" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                      </svg>
+                    ) : (
+                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
+                    )}
+                  </div>
+                  <div className="ml-3">
+                    <p className="text-sm text-blue-800">
+                      {hasIntroduced 
+                        ? `✅ Introduced as ${user.name} (${user.username}, ${user.age} years old, ${user.gender})`
+                        : '🔄 Sending introduction to the bot...'
+                      }
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            {/* TTS and system status */}
+            {isTranscribing && (
+              <div className="mt-4 space-y-3">
+                {/* TTS Queue Status */}
+                {(ttsQueueRef.current.length > 0 || isBotSpeaking) && (
+                  <div className="p-3 bg-purple-50 border border-purple-200 rounded-lg">
+                    <div className="flex items-center">
+                      <div className="flex-shrink-0">
+                        {isBotSpeaking ? (
+                          <div className="flex space-x-1">
+                            <div className="w-2 h-2 bg-purple-600 rounded-full animate-bounce"></div>
+                            <div className="w-2 h-2 bg-purple-600 rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></div>
+                            <div className="w-2 h-2 bg-purple-600 rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
+                          </div>
+                        ) : (
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-purple-600"></div>
+                        )}
+                      </div>
+                      <div className="ml-3">
+                        <p className="text-sm text-purple-800">
+                          {isBotSpeaking 
+                            ? '🔊 Bot is speaking...'
+                            : `📝 Processing voice synthesis (${ttsQueueRef.current.length} in queue)`
+                          }
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+            
             {error && (
               <div className="mt-4 rounded-xl border-l-4 border-red-600 bg-red-50 p-4 text-red-800">
                 <p className="text-lg font-semibold">Error</p>
@@ -648,6 +923,44 @@ export default function LiveTranscription() {
       )}
       {showThematic && (
         <>
+          {/* Top header with user info and controls */}
+          <div className="fixed top-0 left-0 w-full p-4 bg-black/90 backdrop-blur-sm border-b border-gray-800 z-10">
+            <div className="flex items-center justify-between max-w-6xl mx-auto">
+              <div className="flex items-center space-x-4">
+                <div className="text-white">
+                  <div className="font-semibold">{user.name}</div>
+                  <div className="text-sm text-gray-400">@{user.username}</div>
+                </div>
+                {hasIntroduced && (
+                  <div className="flex items-center text-green-400 text-sm">
+                    <svg className="h-4 w-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                    </svg>
+                    Introduced
+                  </div>
+                )}
+              </div>
+              
+              <div className="flex items-center space-x-3">
+                <button
+                  onClick={stopTranscription}
+                  className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg transition-colors text-sm font-medium"
+                >
+                  Stop Session
+                </button>
+                <button
+                  onClick={() => {
+                    stopTranscription();
+                    router.push('/dashboard');
+                  }}
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors text-sm font-medium"
+                >
+                  Dashboard
+                </button>
+              </div>
+            </div>
+          </div>
+
           {/* Siri-style bar animation moved up by 1/7th and increased size */}
           <div className="flex flex-col items-center justify-start w-full h-full" style={{ minHeight: '60vh', paddingTop: '14.2857vh' }}>
             <div className="flex justify-center items-center" style={{ height: 420 }}>

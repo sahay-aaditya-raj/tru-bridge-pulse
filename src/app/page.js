@@ -102,14 +102,20 @@ export default function Home() {
             ) : (
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
                 <button
-                  onClick={() => router.push('/dashboard')}
+                  onClick={() => router.push('/speechtotxt')}
                   className="btn-primary text-lg px-8 py-4"
+                >
+                  🎙️ Start Speech Chat
+                </button>
+                <button
+                  onClick={() => router.push('/dashboard')}
+                  className="btn-secondary text-lg px-8 py-4"
                 >
                   Go to Dashboard
                 </button>
                 <button
                   onClick={() => router.push('/profile')}
-                  className="btn-secondary text-lg px-8 py-4"
+                  className="bg-white text-gray-700 hover:bg-gray-50 border border-gray-300 text-lg px-8 py-4 rounded-md font-medium transition-colors"
                 >
                   View Profile
                 </button>

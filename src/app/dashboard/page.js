@@ -187,12 +187,18 @@ export default function Dashboard() {
                 </h3>
                 <div className="space-y-3">
                   <Link 
-                    href="/profile"
+                    href="/speechtotxt"
                     className="btn-primary w-full text-center block"
+                  >
+                    🎙️ Start Speech Chat
+                  </Link>
+                  <Link 
+                    href="/profile"
+                    className="btn-secondary w-full text-center block"
                   >
                     View Profile
                   </Link>
-                  <button className="btn-secondary w-full">
+                  <button className="w-full px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 transition-colors">
                     Account Settings
                   </button>
                   <button className="w-full px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 transition-colors">
