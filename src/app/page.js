@@ -56,14 +56,14 @@ export default function Home() {
                   <Button
                     onClick={() => router.push('/profile')}
                     variant="secondary"
-                    className="bg-white/20 text-white hover:bg-white/30 border-white/30"
+                    className="bg-white/20 text-white hover:bg-white/30 border-white/30 cursor-pointer"
                   >
                     Profile
                   </Button>
                   <Button
                     onClick={logout}
                     variant="outline"
-                    className="bg-white text-red-600 hover:bg-red-50 border-white"
+                    className="bg-white text-red-600 hover:bg-red-100 hover:text-black border-white cursor-pointer"
                   >
                     Logout
                   </Button>
@@ -73,14 +73,14 @@ export default function Home() {
                   <Button
                     onClick={() => router.push('/auth/login')}
                     variant="secondary"
-                    className="bg-white/20 text-white hover:bg-white/30 border-white/30"
+                    className="bg-white/20 text-white hover:bg-white/30 border-white/30 cursor-pointer"
                   >
                     Login
                   </Button>
                   <Button
                     onClick={() => router.push('/auth/signup')}
                     variant="outline"
-                    className="bg-white text-primary hover:bg-gray-50 border-white"
+                    className="bg-white text-primary hover:bg-gray-50 border-white cursor-pointer"
                   >
                     Sign Up
                   </Button>
@@ -108,24 +108,24 @@ export default function Home() {
             {!isAuthenticated ? (
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
                 <Button
-                  onClick={() => router.push('/auth/signup')}
-                  size="lg"
-                  className="text-lg px-8 py-4 bg-white text-primary hover:bg-gray-50"
+                    onClick={() => router.push('/auth/signup')}
+                    size="lg"
+                    className="text-lg px-8 py-4 bg-white text-primary hover:bg-gray-50 transition-transform duration-200 ease-in-out hover:scale-105 hover:shadow-lg cursor-pointer"
                 >
                   Get Started Free
                 </Button>
                 <Button
-                  onClick={() => router.push('/auth/login')}
-                  variant="outline"
-                  size="lg"
-                  className="text-lg px-8 py-4 bg-white/20 text-white hover:bg-white/30 border-white/30"
+                    onClick={() => router.push('/auth/login')}
+                    variant="outline"
+                    size="lg"
+                    className="text-lg px-8 py-4 bg-white/20 text-white hover:bg-white/30 border-white/30 transition-transform duration-200 ease-in-out hover:scale-105 hover:shadow-lg cursor-pointer"
                 >
                   Sign In
                 </Button>
                 <Button
-                  onClick={() => router.push('/donor-search-public')}
-                  size="lg"
-                  className="text-lg px-8 py-4 bg-white text-primary hover:bg-gray-50"
+                    onClick={() => router.push('/donor-search-public')}
+                    size="lg"
+                    className="text-lg px-8 py-4 bg-white text-primary hover:bg-gray-50 transition-transform duration-200 ease-in-out hover:scale-105 hover:shadow-lg cursor-pointer"
                 >
                   🔎 Search Organ Donors
                 </Button>
@@ -133,32 +133,32 @@ export default function Home() {
             ) : (
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
                 <Button
-                  onClick={() => router.push('/speechtotxt')}
-                  size="lg"
-                  className="text-lg px-8 py-4 bg-white text-primary hover:bg-gray-50"
+                    onClick={() => router.push('/speechtotxt')}
+                    size="lg"
+                    className="text-lg px-8 py-4 bg-white text-primary hover:bg-gray-50 transition-transform duration-200 ease-in-out hover:scale-105 hover:shadow-lg cursor-pointer"
                 >
                   🎙️ Start Speech Chat
                 </Button>
                 <Button
-                  onClick={() => router.push('/dashboard')}
-                  variant="outline"
-                  size="lg"
-                  className="text-lg px-8 py-4 bg-white/20 text-white hover:bg-white/30 border-white/30"
+                    onClick={() => router.push('/dashboard')}
+                    variant="outline"
+                    size="lg"
+                    className="text-lg px-8 py-4 bg-white/20 text-white hover:bg-white/30 border-white/30 transition-transform duration-200 ease-in-out hover:scale-105 hover:shadow-lg cursor-pointer"
                 >
                   Go to Dashboard
                 </Button>
                 <Button
-                  onClick={() => router.push('/donor-search-public')}
-                  size="lg"
-                  className="text-lg px-8 py-4 bg-white text-primary hover:bg-gray-50"
+                    onClick={() => router.push('/donor-search-public')}
+                    size="lg"
+                    className="text-lg px-8 py-4 bg-white text-primary hover:bg-gray-50 transition-transform duration-200 ease-in-out hover:scale-105 hover:shadow-lg cursor-pointer"
                 >
                   🔎 Search Organ Donors
                 </Button>
                 <Button
-                  onClick={() => router.push('/profile')}
-                  variant="secondary"
-                  size="lg"
-                  className="text-lg px-8 py-4 bg-white/10 text-white hover:bg-white/20"
+                    onClick={() => router.push('/profile')}
+                    variant="secondary"
+                    size="lg"
+                    className="text-lg px-8 py-4 bg-white/10 text-white hover:bg-white/20 transition-transform duration-200 ease-in-out hover:scale-105 hover:shadow-lg cursor-pointer"
                 >
                   View Profile
                 </Button>
@@ -294,9 +294,9 @@ export default function Home() {
               Built with ❤️ using Next.js, MongoDB, and modern web technologies
             </p>
             <div className="flex justify-center space-x-6">
-              <Button variant="link" className="text-gray-400 hover:text-white p-0 h-auto">Privacy</Button>
-              <Button variant="link" className="text-gray-400 hover:text-white p-0 h-auto">Terms</Button>
-              <Button variant="link" className="text-gray-400 hover:text-white p-0 h-auto">Support</Button>
+              <Button variant="link" className="text-gray-400 hover:text-white p-0 h-auto cursor-pointer">Privacy</Button>
+              <Button variant="link" className="text-gray-400 hover:text-white p-0 h-auto cursor-pointer">Terms</Button>
+              <Button variant="link" className="text-gray-400 hover:text-white p-0 h-auto cursor-pointer">Support</Button>
             </div>
             <div className="mt-6 pt-6 border-t border-gray-700">
               <p className="text-gray-400">

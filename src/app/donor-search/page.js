@@ -424,7 +424,7 @@ const DonorSearchPage = () => {
                     type="button"
                     onClick={useCurrentLocation}
                     disabled={!userLocation}
-                    className="w-full bg-gray-600 text-white py-2 px-4 rounded-md hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition duration-200"
+                    className="w-full bg-gray-600 text-white py-2 px-4 rounded-md hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition duration-200 cursor-pointer"
                   >
                     Use Current Location
                   </button>
@@ -525,7 +525,7 @@ const DonorSearchPage = () => {
               <button
                 type="submit"
                 disabled={isSearching}
-                className="w-full bg-red-600 text-white py-3 px-4 rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition duration-200"
+                className="w-full bg-red-600 text-white py-3 px-4 rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition duration-200 cursor-pointer"
               >
                 {isSearching ? 'Searching...' : 'Search Donors'}
               </button>
@@ -581,7 +581,7 @@ const DonorSearchPage = () => {
                     <div className="mt-4 pt-4 border-t border-gray-200">
                       <button
                         onClick={() => toggleAlgorithmBreakdown(donor._id)}
-                        className="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-800 mb-3"
+                        className="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-800 mb-3 cursor-pointer"
                       >
                         <span>{expandedDonors.has(donor._id) ? '▼' : '▶'}</span>
                         Algorithm Analysis Details
@@ -646,13 +646,13 @@ const DonorSearchPage = () => {
                   <div className="mt-4 pt-4 border-t border-gray-200 flex gap-3">
                     <a
                       href={`tel:${donor.contactNumber}`}
-                      className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition duration-200 text-sm"
+                      className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition duration-200 text-sm cursor-pointer"
                     >
                       Call Now
                     </a>
                     <a
                       href={`mailto:${donor.email}`}
-                      className="bg-gray-600 text-white px-4 py-2 rounded-md hover:bg-gray-700 transition duration-200 text-sm"
+                      className="bg-gray-600 text-white px-4 py-2 rounded-md hover:bg-gray-700 transition duration-200 text-sm cursor-pointer"
                     >
                       Send Email
                     </a>
@@ -666,7 +666,7 @@ const DonorSearchPage = () => {
         <div className="mt-6 text-center">
           <button
             onClick={() => router.push('/dashboard')}
-            className="text-blue-600 hover:text-blue-800 text-sm"
+            className="text-blue-600 hover:text-blue-800 text-sm cursor-pointer"
           >
             Back to Dashboard
           </button>

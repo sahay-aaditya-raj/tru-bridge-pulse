@@ -3,7 +3,7 @@ import uvicorn
 import os
 import asyncio
 import websockets
-from langchain_groq import ChatGroq
+from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain.memory import ConversationBufferMemory
 from langchain.prompts import PromptTemplate
 from langchain.chains import LLMChain
@@ -128,17 +128,17 @@ def send_email_to_doctor(summary_json):
         server.send_message(msg)
 
 
-# Set your GROQ_API_KEY from environment variables
-groq_api_key = os.getenv("GROQ_API_KEY")
-if not groq_api_key:
-    # It's better to raise an error at startup if the key is missing
-    raise ValueError("GROQ_API_KEY environment variable not set")
 
-# Initialize the LLM once globally
-llm = ChatGroq(
-    groq_api_key=groq_api_key,
+# Set your Gemini API key from environment variables
+gemini_api_key = os.getenv("GEMINI_API_KEY")
+if not gemini_api_key:
+    raise ValueError("GEMINI_API_KEY environment variable not set")
+
+# Initialize the Gemini LLM once globally
+llm = ChatGoogleGenerativeAI(
+    google_api_key=gemini_api_key,
     temperature=0.7,
-    model_name="llama-3.1-8b-instant"
+    model="gemini-1.5-flash"
 )
 
 summary_prompt = PromptTemplate(input_variables=["chat_history"], template=summary_template)
