@@ -237,7 +237,7 @@ export default function Reports() {
                     <div>
                       <h4 className="font-semibold text-gray-900 mb-2">Symptoms:</h4>
                       <div className="flex flex-wrap gap-2">
-                        {(report.symptoms[0].toLowerCase().trim() === "unspecified" ? ["No Symptoms Detected"] : report.symptoms).map((symptom, index) => (
+                        {(report.symptoms.length < 1 || (report.symptoms[0].toLowerCase().trim() === "unspecified" || report.symptoms[0].toLowerCase().trim() === "other") ? ["No Symptoms Detected"] : report.symptoms).map((symptom, index) => (
                           <Badge key={index} variant="outline" className="bg-blue-50">
                             {symptom}
                           </Badge>
