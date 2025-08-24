@@ -78,9 +78,9 @@ async def socratic_chatbot_handler(websocket):
                         f"Age={user_info['age']}, Gender={user_info['gender']}"
                     )
                     print(f"Stored user info in memory: {user_info}")
-
-                    await websocket.send(f"User info for {user_info['username']} received")
-                    continue  # skip LLM response for first message
+                    first_response = await chain.ainvoke({"input": "Start a conversation based on user info"})
+                    await websocket.send(first_response['text'])
+                    continue
                 except Exception as e:
                     print(f"⚠️ Failed to parse user info: {e}")
                     await websocket.send("Invalid user info JSON format.")

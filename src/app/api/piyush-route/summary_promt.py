@@ -11,14 +11,20 @@ Do not include explanations, markdown, or triple backticks.
 Output just the JSON object in the following structure:
 
 {{
-  "sleep": "",
-  "diet": "",
-  "exercise": "",
-  "stress": "",
-  "main_concerns": "",
-  "lifestyle_habits": "",
-  "medical_history": "",
-  "current_symptoms": "",
-  "other_observations": ""
+  "patientInfo": {{
+    "name": "<if available>",
+    "age": "<if available>",
+    "gender": "<if available>"
+  }},
+  "symptoms": [
+    "<list of reported symptoms>"
+  ],
+  "duration": "<how long the symptoms have been present>",
+  "severity": "<mild | moderate | severe>",
+  "possibleCauses": [
+    "<possible causes inferred from conversation>"
+  ],
+  "emotionalState": "<calm | anxious | distressed | depressed | angry >",
+  "doctorNotes": "<short simplified summary for doctor to quickly understand case>"
 }}
 """
