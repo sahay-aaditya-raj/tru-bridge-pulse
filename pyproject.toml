@@ -12,6 +12,7 @@ dependencies = [
     "langchain-groq>=0.3.7",
     "load-dotenv>=0.1.0",
     "pymongo>=4.14.1",
+    "twilio>=9.7.1",
     "uvicorn>=0.35.0",
     "websockets>=15.0.1",
 ]

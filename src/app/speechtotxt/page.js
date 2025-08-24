@@ -328,7 +328,7 @@ export default function LiveTranscription() {
     if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) return;
 
     try {
-      const socket = new WebSocket('ws://10.50.63.14:5001');
+      const socket = new WebSocket('ws://127.0.0.1:5001');
       socketRef.current = socket;
 
       socket.onopen = () => {
