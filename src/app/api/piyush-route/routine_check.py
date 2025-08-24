@@ -242,15 +242,15 @@ async def socratic_chatbot_handler(websocket):
 async def start_websocket_server():
     server = await websockets.serve(
         socratic_chatbot_handler,
-        "0.0.0.0",
+        "127.0.0.1",
         5001
     )
-    print("WebSocket server started on ws://0.0.0.0:5001")
+    print("WebSocket server started on ws://127.0.0.1:5001")
     await server.wait_closed()
 
 # Helper async function to start FastAPI server
 async def start_fastapi_server():
-    config = uvicorn.Config(app, host="0.0.0.0", port=8000, log_level="info")
+    config = uvicorn.Config(app, host="127.0.0.1", port=8000, log_level="info")
     server = uvicorn.Server(config)
     await server.serve()
 
