@@ -42,14 +42,14 @@ export default function Home() {
                   <Button
                     onClick={() => router.push('/dashboard')}
                     variant="secondary"
-                    className="bg-white/20 text-white hover:bg-white/30 border-white/30"
+                    className="bg-white/20 text-white hover:bg-white/30 border-white/30 cursor-pointer"
                   >
                     Dashboard
                   </Button>
                   <Button
                     onClick={() => router.push('/reports')}
                     variant="secondary"
-                    className="bg-white/20 text-white hover:bg-white/30 border-white/30"
+                    className="bg-white/20 text-white hover:bg-white/30 border-white/30 cursor-pointer"
                   >
                     Reports
                   </Button>
