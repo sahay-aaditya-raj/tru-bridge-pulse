@@ -13,6 +13,9 @@ from dotenv import load_dotenv
 import json
 from typing import Dict, Any
 from pymongo import MongoClient
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 
 # Setup MongoDB client (do this once globally)
 MONGO_URI = os.getenv("MONGODB_URI", "mongodb+srv://aaditya:hello678@cluster0.6nnrnnd.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0")
@@ -24,6 +27,42 @@ load_dotenv()  # Load environment variables from .env file
 
 # Initialize FastAPI app after loading env and LLM
 app = FastAPI()
+
+
+def handle_severity(summary_json):
+    severity = summary_json.get("severity", "").lower()
+
+    if severity == "severe":
+        send_email_to_doctor(summary_json)
+        return "Alert sent to doctor due to severe symptoms."
+    
+    elif severity == "moderate":
+        return "You should consult the doctor."
+    
+    elif severity == "mild":
+        return "You are going good! I will catch up with you tomorrow."
+    else:
+        return "Severity not specified."
+
+def send_email_to_doctor(summary_json):
+    sender_email = "piyushkheria23@gmail.com"
+    sender_password = "xsveuwyxubmyktfl"
+    doctor_email = "aadityarajaashu@gmail.com"
+
+    msg = MIMEMultipart()
+    msg['From'] = sender_email
+    msg['To'] = doctor_email
+    msg['Subject'] = "Patient Alert: Severe Symptoms Detected"
+
+    body = f"Patient details:\n\n{summary_json}"
+    msg.attach(MIMEText(body, 'plain'))
+
+    # Connect to SMTP server (like Nodemailer)
+    with smtplib.SMTP("smtp.gmail.com", 587) as server:
+        server.starttls()
+        server.login(sender_email, sender_password)
+        server.send_message(msg)
+
 
 # Set your GROQ_API_KEY from environment variables
 groq_api_key = os.getenv("GROQ_API_KEY")
@@ -100,6 +139,8 @@ async def socratic_chatbot_handler(websocket):
                         summary_json["username"] = user_info.get("username", "unknown")
 
                         collection.insert_one(summary_json)
+                        value = handle_severity(summary_json)
+                        await websocket.send(value)
                         print("Summary inserted into MongoDB ✅")
                     except json.JSONDecodeError:
                         collection.insert_one({
