@@ -9,6 +9,7 @@ dependencies = [
     "flask>=3.1.2",
     "flask-socketio>=5.5.1",
     "langchain-community>=0.3.27",
+    "langchain-google-genai>=2.1.9",
     "langchain-groq>=0.3.7",
     "load-dotenv>=0.1.0",
     "pymongo>=4.14.1",
