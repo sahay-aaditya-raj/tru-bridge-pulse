@@ -810,21 +810,19 @@ export default function LiveTranscription() {
                   {/* Circular Container for Animation */}
                   <div className="flex justify-center items-center mb-6">
                     <div 
-                      className="relative bg-gradient-to-br from-blue-900 to-purple-900 rounded-full border-4 border-blue-500/30 shadow-2xl overflow-hidden"
+                      className="relative bg-gradient-to-br from-blue-900 to-purple-900 rounded-full border-4 border-blue-500/30 shadow-2xl overflow-hidden flex justify-center align-middle items-center"
                       style={{ width: 300, height: 300 }}
                     >
-                      {/* Animation positioned in center of circle */}
-                      <div className="absolute inset-0 flex items-center justify-center">
+                      {/* Animation positioned absolutely in center of circle */}
+                    
                         <SiriAnimation
                           amplitude={isBotSpeaking ? 2.5 : (!silence ? 2.5 : 1)}
                           speed={isBotSpeaking || !silence ? 0.15 : 0.05}
-                          width={260}
-                          height={260}
-                        />
-                      </div>
-                      
+                          width={240}
+                          height={240}
+                        />                      
                       {/* Glowing ring effect */}
-                      <div className="absolute inset-0 rounded-full border-2 border-blue-400 animate-pulse opacity-50"></div>
+                      <div className="absolute inset-2 rounded-full border-2 border-blue-400 animate-pulse opacity-50"></div>
                     </div>
                   </div>
 

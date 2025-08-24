@@ -33,7 +33,7 @@ const SiriAnimation = ({ amplitude = 1, speed = 0.1, width = 400, height = 200 }
   return (
     <div
       className="flex justify-center items-center"
-  style={{ width, height, transform: 'translateY(-50%)' }} // pushed upwards by 50%
+  style={{ width, height }} // pushed upwards by 50%
     >
       <div ref={siriRef} style={{ width, height }} />
     </div>
