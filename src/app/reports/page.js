@@ -237,7 +237,7 @@ export default function Reports() {
                     <div>
                       <h4 className="font-semibold text-gray-900 mb-2">Symptoms:</h4>
                       <div className="flex flex-wrap gap-2">
-                        {(report.symptoms || []).map((symptom, index) => (
+                        {(report.symptoms[0].toLowerCase().trim() === "unspecified" ? ["No Symptoms Detected"] : report.symptoms).map((symptom, index) => (
                           <Badge key={index} variant="outline" className="bg-blue-50">
                             {symptom}
                           </Badge>
@@ -248,7 +248,7 @@ export default function Reports() {
                     <div>
                       <h4 className="font-semibold text-gray-900 mb-2">Possible Causes:</h4>
                       <div className="flex flex-wrap gap-2">
-                        {(report.possibleCauses || []).map((cause, index) => (
+                        {(report.possibleCauses.length > 0 ? report.possibleCauses : ["No Causes Specified"]).map((cause, index) => (
                           <Badge key={index} variant="outline" className="bg-orange-50">
                             {cause}
                           </Badge>
@@ -259,17 +259,17 @@ export default function Reports() {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
                         <h4 className="font-semibold text-gray-900 mb-1">Duration:</h4>
-                        <p className="text-gray-600">{report.duration || 'Unknown'}</p>
+                        <p className="text-gray-600">{report.duration ? report.duration : 'Not Enough Conversation'}</p>
                       </div>
                       <div>
                         <h4 className="font-semibold text-gray-900 mb-1">Emotional State:</h4>
-                        <p className="text-gray-600">{report.emotionalState || 'Not specified'}</p>
+                        <p className="text-gray-600">{(report.emotionalState.toLowerCase().trim() === "unknown") || (report.emotionalState.toLowerCase().trim() === "other")? 'Couldn\'t determine (Lack of Conversation)': report.emotionalState}</p>
                       </div>
                     </div>
 
                     <div>
                       <h4 className="font-semibold text-gray-900 mb-2">Doctor&apos;s Notes:</h4>
-                      <p className="text-gray-700 bg-gray-50 p-3 rounded-md">{report.doctorNotes || 'No notes available'}</p>
+                      <p className="text-gray-700 bg-gray-50 p-3 rounded-md">{report?.doctorNotes || 'No notes available'}</p>
                     </div>
                   </div>
                 </CardContent>
