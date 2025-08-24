@@ -208,6 +208,16 @@ export default function Dashboard() {
                       🎙️ Start Speech Chat
                     </Link>
                   </Button>
+                  <Button asChild variant="default" className="w-full bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600 text-white">
+                    <Link href="/organ-donor">
+                      ❤️ Register an Organ Donor
+                    </Link>
+                  </Button>
+                  <Button asChild variant="default" className="w-full bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white">
+                    <Link href="/donor-search">
+                      🔍 Search Organ Donors
+                    </Link>
+                  </Button>
                   <Button asChild variant="secondary" className="w-full">
                     <Link href="/profile">
                       View Profile

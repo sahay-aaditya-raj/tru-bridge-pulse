@@ -407,10 +407,12 @@ export default function LiveTranscription() {
       const deepgram = createClient(deepgramApiKey);
       const connection = deepgram.listen.live({
         model: 'nova-3',
-        language: 'en-US',
+        language: 'en-IN',
         smart_format: true,
-        interim_results: true,
         punctuate: true,
+        utterances: true,
+        utt_split: 1.2,
+        filler_words: true,
       });
       connectionRef.current = connection;
 
@@ -727,7 +729,7 @@ export default function LiveTranscription() {
           {/* Welcome Section */}
           <div className="mb-8">
             <h2 className="text-3xl font-bold bg-gradient-to-r from-emerald-600 to-blue-600 bg-clip-text text-transparent mb-2">
-              Live Speech to Text
+              Live Speech to Speech Chat
             </h2>
             <p className="text-muted-foreground">
               Welcome, {user.name}! Start a conversation with our AI assistant.
