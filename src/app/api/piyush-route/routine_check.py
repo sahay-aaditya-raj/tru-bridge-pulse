@@ -10,6 +10,15 @@ from langchain.chains import LLMChain
 from summary_promt import summary_template
 from session_prompt import template
 from dotenv import load_dotenv
+import json
+from typing import Dict, Any
+from pymongo import MongoClient
+
+# Setup MongoDB client (do this once globally)
+MONGO_URI = os.getenv("MONGODB_URI", "mongodb+srv://aaditya:hello678@cluster0.6nnrnnd.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0")
+client = MongoClient(MONGO_URI)
+db = client["test"]        # database name
+collection = db["summaries"]
 
 load_dotenv()  # Load environment variables from .env file
 
@@ -38,51 +47,90 @@ prompt = PromptTemplate(input_variables=["chat_history", "input"], template=temp
 async def ping():
     return {"message": "pong"}
 
-# This is the core handler for each WebSocket connection
 async def socratic_chatbot_handler(websocket):
     """
     Handles a single WebSocket connection, managing the chatbot conversation.
-    `path` is the requested path from the client, e.g., '/'.
     """
-    # Each new connection gets its own memory and chain to maintain
-    # an independent conversation history.
     memory = ConversationBufferMemory(memory_key="chat_history")
     chain = LLMChain(llm=llm, prompt=prompt, memory=memory)
+
+    user_info: Dict[str, Any] = {}
+
+    # Step 1: Ask for user info by sending empty string
     await websocket.send("")
-    # Main message-handling loop
+
     try:
         async for message in websocket:
             print(f"Received message from {websocket.remote_address}: {message}")
+
+            # --- Step 2: First message should be user info JSON ---
+            if not user_info:
+                try:
+                    print("Parsing user info...")
+                    user_info = json.loads(message)
+                    required_keys = {"name", "username", "age", "gender"}
+                    if not required_keys.issubset(user_info.keys()):
+                        raise ValueError("Missing required user info fields")
+
+                    # Store user info in memory
+                    memory.chat_memory.add_user_message(
+                        f"User Info: Name={user_info['name']}, Username={user_info['username']}, "
+                        f"Age={user_info['age']}, Gender={user_info['gender']}"
+                    )
+                    print(f"Stored user info in memory: {user_info}")
+
+                    await websocket.send(f"User info for {user_info['username']} received")
+                    continue  # skip LLM response for first message
+                except Exception as e:
+                    print(f"⚠️ Failed to parse user info: {e}")
+                    await websocket.send("Invalid user info JSON format.")
+                    continue
+
+            # --- Step 3: Handle EXIT ---
             if "EXIT" in message.strip().upper():
                 chat_history = memory.load_memory_variables({})["chat_history"]
-                print(f"Final chat history for {websocket.remote_address}:\n{chat_history}")
-                if chat_history: 
-                    pass # Only summarize if there was a conversation
+                print(f"Final chat history for {user_info.get('username','unknown')}:\n{chat_history}")
+
+                if chat_history:
                     summary = await summary_chain.ainvoke({"chat_history": chat_history})
                     summary_text = summary["text"]
-                    await websocket.send(summary_text)
+
+                    try:
+                        summary_json: Dict[str, Any] = json.loads(summary_text)
+                        summary_json["username"] = user_info.get("username", "unknown")
+
+                        collection.insert_one(summary_json)
+                        print("Summary inserted into MongoDB ✅")
+                    except json.JSONDecodeError:
+                        collection.insert_one({
+                            "username": user_info.get("username", "unknown"),
+                            "raw_summary": summary_text
+                        })
+                        print("⚠️ Stored raw summary with username")
+
                 await websocket.send("EXITING.....")
-                print(f"Conversation ended for {websocket.remote_address}. Closing connection.")
+                print(f"Conversation ended for {user_info.get('username','unknown')}. Closing connection.")
                 break
+
+            # --- Step 4: Normal conversation ---
             if not message.strip():
-                continue  # Ignore empty messages
+                continue
 
-            # Run the LLM chain to get a response. We use await because it's an async call.
             response = await chain.ainvoke({"input": message})
-
-            # The response object contains the generated text
             response_text = response['text']
             print(f"Generated response: {response_text}")
-            
-            # Send the response back to the client
+
             await websocket.send(response_text)
-            print(f"Sent response to {websocket.remote_address}")        
+            print(f"Sent response to {user_info.get('username','unknown')}")
+
     except websockets.exceptions.ConnectionClosedError as e:
         print(f"Connection closed by client {websocket.remote_address}: {e}")
     except Exception as e:
         print(f"An error occurred with connection {websocket.remote_address}: {e}")
     finally:
         print(f"Connection to {websocket.remote_address} closed.")
+        memory.chat_memory.messages = []
+        print(f"Cleared memory for {websocket.remote_address}")
 
 
 # Helper async function to start the websocket server
