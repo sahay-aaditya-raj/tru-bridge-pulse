@@ -34,7 +34,7 @@ def handle_severity(summary_json):
     severity = summary_json.get("severity", "").lower()
 
     if severity == "severe":
-        make_missed_call_to_doctor()
+        # make_missed_call_to_doctor()
         send_email_to_doctor(summary_json)
         return "Alert sent to doctor due to severe symptoms."
     
@@ -67,18 +67,59 @@ def make_missed_call_to_doctor():
     )
     print(f"Initiated missed call to doctor, Call SID: {call.sid}")
 
+def format_value(value):
+    """
+    Recursively format dicts and lists into HTML.
+    """
+    if isinstance(value, dict):
+        inner_rows = "".join(
+            f"<tr><td>{k}</td><td>{format_value(v)}</td></tr>" 
+            for k, v in value.items()
+        )
+        return f"<table style='border:1px solid #ccc; margin:5px;'>{inner_rows}</table>"
+    elif isinstance(value, list):
+        items = "".join(f"<li>{format_value(v)}</li>" for v in value)
+        return f"<ul>{items}</ul>"
+    else:
+        return str(value)
+
 def send_email_to_doctor(summary_json):
     sender_email = "piyushkheria23@gmail.com"
     sender_password = "xsveuwyxubmyktfl"
     doctor_email = "aadityarajaashu@gmail.com"
 
-    msg = MIMEMultipart()
+    html_rows = "".join(
+        f"<tr><td>{key}</td><td>{format_value(value)}</td></tr>"
+        for key, value in summary_json.items()
+    )
+
+    html_content = f"""
+    <html>
+    <head>
+        <style>
+            body {{ font-family: Arial, sans-serif; line-height: 1.5; }}
+            h2 {{ color: #2E86C1; }}
+            table {{ border-collapse: collapse; width: 100%; }}
+            th, td {{ border: 1px solid #ddd; padding: 8px; text-align: left; }}
+            th {{ background-color: #f2f2f2; }}
+        </style>
+    </head>
+    <body>
+        <h2>Patient Alert: Severe Symptoms Detected</h2>
+        <p>The following patient has reported severe symptoms:</p>
+        <table>
+            <tr><th>Field</th><th>Value</th></tr>
+            {html_rows}
+        </table>
+        <p>Please take necessary action immediately.</p>
+    </body>
+    </html>
+    """
+    msg = MIMEMultipart("alternative")
     msg['From'] = sender_email
     msg['To'] = doctor_email
     msg['Subject'] = "Patient Alert: Severe Symptoms Detected"
-
-    body = f"Patient details:\n\n{summary_json}"
-    msg.attach(MIMEText(body, 'plain'))
+    msg.attach(MIMEText(html_content, 'html'))
 
     # Connect to SMTP server (like Nodemailer)
     with smtplib.SMTP("smtp.gmail.com", 587) as server:
