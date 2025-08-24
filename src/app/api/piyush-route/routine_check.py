@@ -90,7 +90,7 @@ def send_email_to_doctor(summary_json):
 
     html_rows = "".join(
         f"<tr><td>{key}</td><td>{format_value(value)}</td></tr>"
-        for key, value in summary_json.items()
+        for key, value in summary_json.items() if key !='_id'
     )
 
     html_content = f"""
