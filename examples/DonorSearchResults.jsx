@@ -1,10 +1,11 @@
-// Example React component to display donor search results with compatibility badges
+// Example React component to display donor search results with compatibility badges and algorithm breakdown
 
 import React, { useState, useEffect } from 'react';
 
 const DonorSearchResults = () => {
   const [donors, setDonors] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [expandedDonor, setExpandedDonor] = useState(null);
   const [searchParams, setSearchParams] = useState({
     lat: '',
     lng: '',
@@ -18,13 +19,15 @@ const DonorSearchResults = () => {
   // Function to get badge style based on compatibility color
   const getCompatibilityBadgeStyle = (color, status) => {
     const baseStyle = {
-      padding: '4px 12px',
+      padding: '6px 12px',
       borderRadius: '20px',
       fontSize: '12px',
       fontWeight: 'bold',
       textAlign: 'center',
       display: 'inline-block',
-      minWidth: '120px'
+      minWidth: '120px',
+      cursor: 'pointer',
+      transition: 'all 0.2s ease'
     };
 
     switch(color) {
@@ -58,6 +61,90 @@ const DonorSearchResults = () => {
           border: '1px solid #d6d8db'
         };
     }
+  };
+
+  // Function to render compatibility breakdown
+  const renderCompatibilityBreakdown = (breakdown, score) => {
+    if (!breakdown || !breakdown.details) return null;
+
+    return (
+      <div style={{ 
+        marginTop: '15px', 
+        padding: '15px', 
+        backgroundColor: '#f8f9fa', 
+        borderRadius: '8px',
+        border: '1px solid #e9ecef'
+      }}>
+        <h5 style={{ margin: '0 0 15px 0', color: '#495057' }}>
+          🧬 Algorithm Breakdown (Score: {score}/115+)
+        </h5>
+        
+        <div style={{ display: 'grid', gap: '10px' }}>
+          {breakdown.details.map((detail, index) => (
+            <div 
+              key={index}
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                padding: '8px 12px',
+                backgroundColor: 'white',
+                borderRadius: '6px',
+                border: `1px solid ${
+                  detail.status === 'passed' ? '#c3e6cb' :
+                  detail.status === 'bonus' ? '#b3d7ff' :
+                  detail.status === 'failed' ? '#f5c6cb' :
+                  '#d6d8db'
+                }`
+              }}
+            >
+              <div style={{ flex: 1 }}>
+                <div style={{ 
+                  fontWeight: 'bold', 
+                  marginBottom: '4px',
+                  color: detail.status === 'failed' ? '#721c24' : '#495057'
+                }}>
+                  {detail.status === 'passed' ? '✅' : 
+                   detail.status === 'bonus' ? '🎁' :
+                   detail.status === 'failed' ? '❌' : 'ℹ️'} {detail.factor}
+                </div>
+                <div style={{ 
+                  fontSize: '13px', 
+                  color: '#6c757d',
+                  fontStyle: 'italic'
+                }}>
+                  {detail.reason}
+                </div>
+              </div>
+              <div style={{ 
+                fontWeight: 'bold',
+                fontSize: '16px',
+                color: detail.points > 0 ? '#28a745' : detail.status === 'failed' ? '#dc3545' : '#6c757d'
+              }}>
+                {detail.points > 0 ? '+' : ''}{detail.points}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Summary */}
+        <div style={{ 
+          marginTop: '15px', 
+          padding: '10px', 
+          backgroundColor: score >= 70 ? '#d4edda' : score >= 30 ? '#fff3cd' : '#f8d7da',
+          borderRadius: '6px',
+          textAlign: 'center',
+          fontWeight: 'bold'
+        }}>
+          🎯 Final Score: {score}/115+ points
+          {breakdown.ageDifference !== null && (
+            <div style={{ fontSize: '12px', fontWeight: 'normal', marginTop: '5px' }}>
+              Age Difference: {breakdown.ageDifference} years
+            </div>
+          )}
+        </div>
+      </div>
+    );
   };
 
   // Search function
@@ -102,9 +189,13 @@ const DonorSearchResults = () => {
     }
   };
 
+  const toggleBreakdown = (donorId) => {
+    setExpandedDonor(expandedDonor === donorId ? null : donorId);
+  };
+
   return (
     <div style={{ padding: '20px', maxWidth: '1200px', margin: '0 auto' }}>
-      <h2>Organ Donor Search</h2>
+      <h2>Organ Donor Search with Algorithm Breakdown</h2>
       
       {/* Search Form */}
       <div style={{ 
@@ -186,6 +277,21 @@ const DonorSearchResults = () => {
           </div>
           
           <div>
+            <label>Urgency (1-5)</label>
+            <select
+              value={searchParams.urgency}
+              onChange={(e) => setSearchParams({...searchParams, urgency: parseInt(e.target.value)})}
+              style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }}
+            >
+              <option value={1}>1 - Low</option>
+              <option value={2}>2 - Moderate</option>
+              <option value={3}>3 - Normal</option>
+              <option value={4}>4 - High</option>
+              <option value={5}>5 - Critical</option>
+            </select>
+          </div>
+          
+          <div>
             <label>Radius (km)</label>
             <input
               type="number"
@@ -256,7 +362,7 @@ const DonorSearchResults = () => {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '20px', alignItems: 'start' }}>
                 <div>
                   <h4 style={{ margin: '0 0 10px 0', color: '#333' }}>
-                    {donor.name}
+                    #{index + 1} {donor.name}
                   </h4>
                   
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '10px', marginBottom: '15px' }}>
@@ -277,14 +383,23 @@ const DonorSearchResults = () => {
                 
                 {/* Compatibility Badge */}
                 <div style={{ textAlign: 'right' }}>
-                  <div style={getCompatibilityBadgeStyle(donor.compatibilityColor, donor.compatibilityStatus)}>
+                  <div 
+                    style={getCompatibilityBadgeStyle(donor.compatibilityColor, donor.compatibilityStatus)}
+                    onClick={() => donor.compatibilityBreakdown && toggleBreakdown(donor._id)}
+                    title={donor.compatibilityBreakdown ? "Click to see algorithm breakdown" : ""}
+                  >
                     {donor.compatibilityStatus}
+                    {donor.compatibilityBreakdown && (
+                      <span style={{ marginLeft: '5px' }}>
+                        {expandedDonor === donor._id ? '▼' : '▶'}
+                      </span>
+                    )}
                   </div>
                   
                   {donor.compatibilityScore !== null && (
                     <div style={{ marginTop: '8px', fontSize: '12px', color: '#6c757d' }}>
                       Score: {donor.compatibilityScore}
-                      {donor.searchMode === 'compatibility' && '/115'}
+                      {donor.searchMode === 'compatibility' && '/115+'}
                     </div>
                   )}
                   
@@ -293,6 +408,11 @@ const DonorSearchResults = () => {
                   </div>
                 </div>
               </div>
+
+              {/* Algorithm Breakdown */}
+              {expandedDonor === donor._id && donor.compatibilityBreakdown && 
+                renderCompatibilityBreakdown(donor.compatibilityBreakdown, donor.compatibilityScore)
+              }
             </div>
           ))}
         </div>

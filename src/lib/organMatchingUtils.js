@@ -38,7 +38,8 @@ class RecipientNode {
 
 // Check if donor blood group is compatible with recipient blood group
 function isBloodCompatible(donorBG, recipientBG) {
-  return bloodCompatibilityWithRh[donorBG]?.includes(recipientBG);
+  const compatible = bloodCompatibilityWithRh[donorBG]?.includes(recipientBG);
+  return compatible;
 }
 
 // Calculate compatibility score between donor and recipient

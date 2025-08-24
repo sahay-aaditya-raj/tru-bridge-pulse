@@ -76,7 +76,7 @@ async function testSearchAPI() {
       result3.data.slice(0, 3).forEach((donor, i) => {
         const compatIcon = donor.compatibilityColor === 'green' ? '🟢' : '🟡';
         console.log(`   ${i+1}. ${compatIcon} ${donor.name}`);
-        console.log(`      Score: ${donor.compatibilityScore}/115 | Distance: ${donor.distance}km`);
+        console.log(`      Score: ${donor.compatibilityScore} | Distance: ${donor.distance}km`);
         console.log(`      Status: ${donor.compatibilityStatus} | Level: ${donor.compatibilityLevel}`);
         console.log(`      Blood: ${donor.bloodGroup} | Organs: ${donor.organType.join(', ')}`);
       });

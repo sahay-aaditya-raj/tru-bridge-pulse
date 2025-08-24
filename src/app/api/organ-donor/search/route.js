@@ -15,32 +15,86 @@ function getCompatibilityScore(donor, searchParams) {
   const { bloodGroup: recipientBG, organType: requiredOrgan, age: recipientAge, urgency = 3 } = searchParams;
   
   // Check blood compatibility first
-  if (!isBloodCompatible(donor.bloodGroup, recipientBG)) return 0;
+  const bloodCompatible = isBloodCompatible(donor.bloodGroup, recipientBG);
+  
+  if (!bloodCompatible) {
+    return {
+      score: 0,
+      breakdown: {
+        bloodCompatible: false,
+        organMatch: false,
+        bloodScore: 0,
+        organScore: 0,
+        ageScore: 0,
+        urgencyScore: 0,
+        perfectMatchBonus: 0,
+        ageDifference: recipientAge ? Math.abs(donor.age - recipientAge) : null
+      }
+    };
+  }
   
   // Check if donor has the required organ
-  if (!donor.organType.includes(requiredOrgan)) return 0;
+  const hasOrgan = donor.organType.includes(requiredOrgan);
+  
+  if (!hasOrgan) {
+    return {
+      score: 0,
+      breakdown: {
+        bloodCompatible: true,
+        organMatch: false,
+        bloodScore: 50,
+        organScore: 0,
+        ageScore: 0,
+        urgencyScore: 0,
+        perfectMatchBonus: 0,
+        ageDifference: recipientAge ? Math.abs(donor.age - recipientAge) : null
+      }
+    };
+  }
 
   let score = 0;
   
   // Base score for blood compatibility
-  score += 50;
+  const bloodScore = 50;
+  score += bloodScore;
   
   // Organ type exact match bonus
-  if (donor.organType.includes(requiredOrgan)) score += 30;
+  const organScore = 30;
+  score += organScore;
   
   // Age compatibility (closer ages get higher scores)
+  let ageScore = 0;
+  let ageDifference = null;
   if (recipientAge) {
-    const ageDifference = Math.abs(donor.age - recipientAge);
-    score += Math.max(0, 20 - ageDifference);
+    ageDifference = Math.abs(donor.age - recipientAge);
+    ageScore = Math.max(0, 20 - ageDifference);
+    score += ageScore;
   }
   
   // Urgency factor (higher urgency increases score)
-  score += urgency * 5;
+  const urgencyScore = urgency * 5;
+  score += urgencyScore;
   
   // Perfect blood type match bonus (exact same blood group)
-  if (donor.bloodGroup === recipientBG) score += 10;
+  let perfectMatchBonus = 0;
+  if (donor.bloodGroup === recipientBG) {
+    perfectMatchBonus = 10;
+    score += perfectMatchBonus;
+  }
   
-  return score;
+  return {
+    score,
+    breakdown: {
+      bloodCompatible: true,
+      organMatch: true,
+      bloodScore,
+      organScore,
+      ageScore,
+      urgencyScore,
+      perfectMatchBonus,
+      ageDifference
+    }
+  };
 }
 
 // Get compatibility status with color coding for UI
@@ -164,7 +218,8 @@ export async function GET(request) {
 
       processedDonors = allDonors
         .map(donor => {
-          const compatibilityScore = getCompatibilityScore(donor, searchCriteria);
+          const compatibilityResult = getCompatibilityScore(donor, searchCriteria);
+          const compatibilityScore = compatibilityResult.score;
           const distance = calculateDistance(
             lat, lng,
             donor.coordinates.coordinates[1], // latitude
@@ -177,7 +232,8 @@ export async function GET(request) {
             ...donor,
             distance: Math.round(distance * 100) / 100,
             compatibilityScore,
-            compatibilityStatus: compatibilityStatus.status,
+            algorithmBreakdown: compatibilityResult.breakdown,
+            compatibilityStatus: compatibilityStatus.status.toLowerCase().replace(/\s+/g, '-'),
             compatibilityLevel: compatibilityStatus.level,
             compatibilityColor: compatibilityStatus.color,
             isCompatible: compatibilityScore > 0,
@@ -207,12 +263,14 @@ export async function GET(request) {
           
           // If bloodGroup and organType are provided in general search, show basic compatibility
           if (bloodGroup && organType) {
-            const compatibilityScore = getCompatibilityScore(donor, { bloodGroup, organType, age, urgency });
+            const compatibilityResult = getCompatibilityScore(donor, { bloodGroup, organType, age, urgency });
+            const compatibilityScore = compatibilityResult.score;
             const compatibilityStatus = getCompatibilityStatus(compatibilityScore);
             
             compatibilityInfo = {
               compatibilityScore,
-              compatibilityStatus: compatibilityStatus.status,
+              algorithmBreakdown: compatibilityResult.breakdown,
+              compatibilityStatus: compatibilityStatus.status.toLowerCase().replace(/\s+/g, '-'),
               compatibilityLevel: compatibilityStatus.level,
               compatibilityColor: compatibilityStatus.color,
               isCompatible: compatibilityScore > 0
@@ -224,7 +282,7 @@ export async function GET(request) {
             distance: Math.round(distance * 100) / 100,
             searchMode: 'general',
             ...(compatibilityInfo || {
-              compatibilityStatus: 'Not Assessed',
+              compatibilityStatus: 'unknown',
               compatibilityLevel: 'General Search',
               compatibilityColor: 'gray',
               isCompatible: null,

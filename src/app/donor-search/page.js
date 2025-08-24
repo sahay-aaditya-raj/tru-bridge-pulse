@@ -17,6 +17,7 @@ const DonorSearchPage = () => {
   const [manualLocation, setManualLocation] = useState('');
   const [searchMode, setSearchMode] = useState('coordinates'); // 'coordinates' or 'location'
   const locationInputRef = useRef(null);
+  const [expandedDonors, setExpandedDonors] = useState(new Set());
   
   const [searchParams, setSearchParams] = useState({
     lat: '',
@@ -24,6 +25,7 @@ const DonorSearchPage = () => {
     radius: '50',
     bloodGroup: '',
     organType: '',
+    age: '',
     limit: '20'
   });
 
@@ -198,6 +200,11 @@ const DonorSearchPage = () => {
       if (value) queryParams.append(key, value);
     });
 
+    // Add mode parameter to enable compatibility scoring when blood group and organ type are provided
+    if (params.bloodGroup && params.organType) {
+      queryParams.append('mode', 'compatibility');
+    }
+
     const response = await fetch(`/api/organ-donor/search?${queryParams}`, {
       method: 'GET',
       credentials: 'include',
@@ -210,7 +217,10 @@ const DonorSearchPage = () => {
 
     if (data.success) {
       setDonors(data.data);
-      setMessage(`Found ${data.count} donor(s) within ${params.radius}km`);
+      const modeText = params.bloodGroup && params.organType ? 
+        `Found ${data.count} donor(s) with compatibility analysis` : 
+        `Found ${data.count} donor(s) within ${params.radius}km`;
+      setMessage(modeText);
       setMessageType('success');
     } else {
       setMessage(data.message || 'Search failed');
@@ -228,6 +238,47 @@ const DonorSearchPage = () => {
         lng: userLocation.lng.toString()
       }));
     }
+  };
+
+  // Helper function to get compatibility badge
+  const getCompatibilityBadge = (compatibilityStatus) => {
+    const statusConfig = {
+      'fully-compatible': { 
+        color: 'bg-green-100 text-green-800 border-green-200', 
+        text: 'Fully Compatible' 
+      },
+      'compatible': { 
+        color: 'bg-yellow-100 text-yellow-800 border-yellow-200', 
+        text: 'Compatible' 
+      },
+      'not-compatible': { 
+        color: 'bg-red-100 text-red-800 border-red-200', 
+        text: 'Not Compatible' 
+      },
+      'unknown': { 
+        color: 'bg-gray-100 text-gray-800 border-gray-200', 
+        text: 'No Analysis' 
+      }
+    };
+
+    const config = statusConfig[compatibilityStatus] || statusConfig['unknown'];
+    
+    return (
+      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${config.color}`}>
+        {config.text}
+      </span>
+    );
+  };
+
+  // Helper function to toggle algorithm breakdown
+  const toggleAlgorithmBreakdown = (donorId) => {
+    const newExpanded = new Set(expandedDonors);
+    if (newExpanded.has(donorId)) {
+      newExpanded.delete(donorId);
+    } else {
+      newExpanded.add(donorId);
+    }
+    setExpandedDonors(newExpanded);
   };
 
   if (loading) {
@@ -435,6 +486,23 @@ const DonorSearchPage = () => {
               </div>
 
               <div>
+                <label htmlFor="age" className="block text-sm font-medium text-gray-700 mb-2">
+                  Patient Age (Optional)
+                </label>
+                <input
+                  type="number"
+                  id="age"
+                  name="age"
+                  min="1"
+                  max="120"
+                  value={searchParams.age}
+                  onChange={handleInputChange}
+                  placeholder="Enter patient age"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+
+              <div>
                 <label htmlFor="limit" className="block text-sm font-medium text-gray-700 mb-2">
                   Max Results
                 </label>
@@ -473,10 +541,18 @@ const DonorSearchPage = () => {
                 <div key={donor._id} className="border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow">
                   <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
                     <div>
-                      <h3 className="font-semibold text-lg text-gray-900">{donor.name}</h3>
+                      <div className="flex items-center gap-3 mb-2">
+                        <h3 className="font-semibold text-lg text-gray-900">{donor.name}</h3>
+                        {donor.compatibilityStatus && donor.compatibilityStatus !== 'unknown' && getCompatibilityBadge(donor.compatibilityStatus)}
+                      </div>
                       <p className="text-gray-600">Age: {donor.age} years</p>
                       <p className="text-gray-600">Blood Group: <span className="font-medium text-red-600">{donor.bloodGroup}</span></p>
                       <p className="text-gray-600">Distance: <span className="font-medium text-blue-600">{donor.distance} km</span></p>
+                      {donor.compatibilityScore !== undefined && donor.compatibilityScore !== null && donor.compatibilityStatus !== 'unknown' && (
+                        <p className="text-gray-600">
+                          Compatibility Score: <span className="font-medium text-purple-600">{donor.compatibilityScore}</span>
+                        </p>
+                      )}
                     </div>
                     
                     <div>
@@ -499,6 +575,73 @@ const DonorSearchPage = () => {
                       </p>
                     </div>
                   </div>
+
+                  {/* Algorithm Breakdown Section */}
+                  {donor.algorithmBreakdown && donor.compatibilityStatus !== 'unknown' && (
+                    <div className="mt-4 pt-4 border-t border-gray-200">
+                      <button
+                        onClick={() => toggleAlgorithmBreakdown(donor._id)}
+                        className="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-800 mb-3"
+                      >
+                        <span>{expandedDonors.has(donor._id) ? '▼' : '▶'}</span>
+                        Algorithm Analysis Details
+                      </button>
+                      
+                      {expandedDonors.has(donor._id) && (
+                        <div className="bg-gray-50 rounded-lg p-4 space-y-3">
+                          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
+                            <div>
+                              <p className="font-medium text-gray-700">Blood Compatibility</p>
+                              <p className="text-gray-600">
+                                {donor.algorithmBreakdown.bloodCompatible ? 
+                                  <span className="text-green-600">✓ Compatible</span> : 
+                                  <span className="text-red-600">✗ Not Compatible</span>
+                                }
+                              </p>
+                              <p className="text-gray-500">Score: {donor.algorithmBreakdown.bloodScore}/50</p>
+                            </div>
+                            
+                            <div>
+                              <p className="font-medium text-gray-700">Organ Match</p>
+                              <p className="text-gray-600">
+                                {donor.algorithmBreakdown.organMatch ? 
+                                  <span className="text-green-600">✓ Available</span> : 
+                                  <span className="text-red-600">✗ Not Available</span>
+                                }
+                              </p>
+                              <p className="text-gray-500">Score: {donor.algorithmBreakdown.organScore}/30</p>
+                            </div>
+                            
+                            <div>
+                              <p className="font-medium text-gray-700">Age Compatibility</p>
+                              <p className="text-gray-600">Age difference: {donor.algorithmBreakdown.ageDifference} years</p>
+                              <p className="text-gray-500">Score: {donor.algorithmBreakdown.ageScore}/20</p>
+                            </div>
+                            
+                            <div>
+                              <p className="font-medium text-gray-700">Additional Factors</p>
+                              <p className="text-gray-500">Urgency: {donor.algorithmBreakdown.urgencyScore}/25</p>
+                              {donor.algorithmBreakdown.perfectMatchBonus > 0 && (
+                                <p className="text-green-600">Perfect Match Bonus: +{donor.algorithmBreakdown.perfectMatchBonus}</p>
+                              )}
+                            </div>
+                          </div>
+                          
+                          <div className="pt-3 border-t border-gray-200">
+                            <p className="text-sm font-medium text-gray-700">
+                              Total Compatibility Score: 
+                              <span className="ml-2 text-lg font-bold text-purple-600">
+                                {donor.compatibilityScore}
+                              </span>
+                            </p>
+                            <p className="text-xs text-gray-500 mt-1">
+                              Based on blood compatibility, organ availability, age matching, and urgency factors
+                            </p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
                   
                   <div className="mt-4 pt-4 border-t border-gray-200 flex gap-3">
                     <a
