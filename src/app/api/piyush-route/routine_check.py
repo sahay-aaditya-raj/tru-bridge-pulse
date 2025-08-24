@@ -16,6 +16,7 @@ from pymongo import MongoClient
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+from twilio.rest import Client
 
 # Setup MongoDB client (do this once globally)
 MONGO_URI = os.getenv("MONGODB_URI", "mongodb+srv://aaditya:hello678@cluster0.6nnrnnd.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0")
@@ -33,6 +34,7 @@ def handle_severity(summary_json):
     severity = summary_json.get("severity", "").lower()
 
     if severity == "severe":
+        make_missed_call_to_doctor()
         send_email_to_doctor(summary_json)
         return "Alert sent to doctor due to severe symptoms."
     
@@ -43,6 +45,27 @@ def handle_severity(summary_json):
         return "You are going good! I will catch up with you tomorrow."
     else:
         return "Severity not specified."
+
+def make_missed_call_to_doctor():
+    # Twilio credentials from environment variables
+    account_sid = os.getenv("TWILIO_ACCOUNT_SID")
+    auth_token = os.getenv("TWILIO_AUTH_TOKEN")
+    from_number = os.getenv("TWILIO_PHONE_NUMBER")  # Twilio number
+    to_number = os.getenv("DOCTOR_PHONE_NUMBER")    # Doctor's number
+
+    if not all([account_sid, auth_token, from_number, to_number]):
+        print("Twilio environment variables not set. Cannot make call.")
+        return
+
+    client = Client(account_sid, auth_token)
+
+    # Make a short call (missed call simulation)
+    call = client.calls.create(
+        to=to_number,
+        from_=from_number,
+        url="http://twimlets.com/holdmusic?Bucket=com.twilio.music.ambient",  # Just a placeholder URL
+    )
+    print(f"Initiated missed call to doctor, Call SID: {call.sid}")
 
 def send_email_to_doctor(summary_json):
     sender_email = "piyushkheria23@gmail.com"
