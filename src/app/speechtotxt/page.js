@@ -350,9 +350,13 @@ export default function LiveTranscription() {
         // Now it's safe to shutdown mic since WebSocket is closed
         if (!isClosingRef.current) {
           shutdownMic();
+          router.push('/reports');
           try {
             connectionRef.current?.requestClose?.();
           } catch {}
+          
+          // Redirect to reports page when connection is closed
+          
         }
       };
 
@@ -372,7 +376,6 @@ export default function LiveTranscription() {
     if (sock) {
       try {
         sock.close();
-        window.location.href = "/reports"
       } catch {}
       socketRef.current = null;
     }
@@ -605,7 +608,7 @@ export default function LiveTranscription() {
 
     // Stop any TTS playback
     stopAudio();
-
+    router.push('/reports');
     setIsTranscribing(false);
   };
 
@@ -692,13 +695,13 @@ export default function LiveTranscription() {
 
           {/* Controls Section */}
           <Card className="mb-6 sm:mb-8">
-            <CardHeader>
-              <CardTitle className="text-lg sm:text-xl">Voice Interaction Controls</CardTitle>
-              <CardDescription className="text-sm sm:text-base">
-                Start your conversation with the AI assistant
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <div>
+                <CardTitle className="text-lg sm:text-xl">Voice Interaction Controls</CardTitle>
+                <CardDescription className="text-sm sm:text-base">
+                  Start your conversation with the AI assistant
+                </CardDescription>
+              </div>
               <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                 <Button
                   onClick={startTranscription}
@@ -707,7 +710,7 @@ export default function LiveTranscription() {
                   className="inline-flex items-center gap-2"
                 >
                   <span aria-hidden>🎙️</span>
-                  {isTranscribing ? 'Recording Active' : 'Start Recording'}
+                  {isTranscribing ? 'Counselling Active' : 'Start Counselling'}
                 </Button>
                 
                 {isTranscribing && (
@@ -718,10 +721,12 @@ export default function LiveTranscription() {
                     className="inline-flex items-center gap-2"
                   >
                     <span aria-hidden>🛑</span>
-                    Stop Recording
+                    Stop Counselling
                   </Button>
                 )}
               </div>
+            </CardHeader>
+            <CardContent>
 
               {/* Status Messages */}
               {isTranscribing && (
