@@ -40,6 +40,20 @@ export default function Home() {
                     Welcome, <span className="font-semibold">{user?.name}</span>!
                   </span>
                   <Button
+                    onClick={() => router.push('/dashboard')}
+                    variant="secondary"
+                    className="bg-white/20 text-white hover:bg-white/30 border-white/30"
+                  >
+                    Dashboard
+                  </Button>
+                  <Button
+                    onClick={() => router.push('/reports')}
+                    variant="secondary"
+                    className="bg-white/20 text-white hover:bg-white/30 border-white/30"
+                  >
+                    Reports
+                  </Button>
+                  <Button
                     onClick={() => router.push('/profile')}
                     variant="secondary"
                     className="bg-white/20 text-white hover:bg-white/30 border-white/30"

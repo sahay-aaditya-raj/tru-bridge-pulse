@@ -378,6 +378,7 @@ export default function LiveTranscription() {
     if (sock) {
       try {
         sock.close();
+        window.location.href = "/reports"
       } catch {}
       socketRef.current = null;
     }
