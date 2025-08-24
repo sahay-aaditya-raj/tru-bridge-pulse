@@ -3,7 +3,6 @@
 import { useAuth } from '@/hooks/useAuth';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState, useCallback } from 'react';
-import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -132,11 +131,6 @@ export default function Reports() {
     return 'Unknown Date';
   };
 
-  const handleLogout = async () => {
-    await logout();
-    router.push('/');
-  };
-
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-cyan-50 via-blue-50 to-emerald-50">
@@ -153,44 +147,7 @@ export default function Reports() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-cyan-50 via-blue-50 to-emerald-50">
-      {/* Header */}
-      <header className="bg-gradient-to-r from-emerald-400 via-cyan-400 to-blue-400 shadow-lg">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-6">
-            <Link href="/" className="text-white hover:text-blue-100 transition-colors">
-              <h1 className="text-2xl font-bold">TruBridge Pulse</h1>
-            </Link>
-            <nav className="flex items-center space-x-4">
-              <Button
-                onClick={() => router.push('/dashboard')}
-                variant="secondary"
-                className="bg-white/20 text-white hover:bg-white/30 border-white/30"
-              >
-                Dashboard
-              </Button>
-              <Button
-                onClick={() => router.push('/profile')}
-                variant="secondary"
-                className="bg-white/20 text-white hover:bg-white/30 border-white/30"
-              >
-                Profile
-              </Button>
-              <span className="text-white">
-                Welcome, <span className="font-semibold">{user?.name}</span>!
-              </span>
-              <Button
-                onClick={handleLogout}
-                variant="secondary"
-                className="bg-white/20 text-white hover:bg-white/30 border-white/30"
-              >
-                Logout
-              </Button>
-            </nav>
-          </div>
-        </div>
-      </header>
-
+    <div className="min-h-screen bg-gradient-to-br from-cyan-50 via-blue-50 to-emerald-50 pt-4">
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-8">

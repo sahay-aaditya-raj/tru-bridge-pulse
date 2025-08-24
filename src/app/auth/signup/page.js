@@ -91,13 +91,13 @@ export default function Signup() {
 
   if (success) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-cyan-50 via-blue-50 to-emerald-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+      <div className="min-h-screen bg-gradient-to-br from-cyan-50 via-blue-50 to-emerald-50 flex items-center justify-center py-8 sm:py-12 px-4 sm:px-6 lg:px-8">
         <div className="max-w-md w-full">
           <Card className="text-center fade-in shadow-lg border-0 bg-white/80 backdrop-blur-sm">
-            <CardContent className="pt-6">
-              <div className="text-primary text-6xl mb-4">✓</div>
-              <CardTitle className="text-2xl font-bold mb-2">Account Created!</CardTitle>
-              <CardDescription className="mb-4">
+            <CardContent className="pt-4 sm:pt-6">
+              <div className="text-primary text-4xl sm:text-6xl mb-3 sm:mb-4">✓</div>
+              <CardTitle className="text-xl sm:text-2xl font-bold mb-2">Account Created!</CardTitle>
+              <CardDescription className="mb-3 sm:mb-4 text-sm sm:text-base">
                 Your account has been successfully created. Redirecting to login...
               </CardDescription>
               <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary mx-auto"></div>
@@ -109,33 +109,33 @@ export default function Signup() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-cyan-50 via-blue-50 to-emerald-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-gradient-to-br from-cyan-50 via-blue-50 to-emerald-50 flex items-center justify-center py-8 sm:py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full">
-        <div className="text-center mb-8">
+        <div className="text-center mb-6 sm:mb-8">
           <Link href="/" className="text-foreground hover:text-primary transition-colors">
-            <h1 className="text-3xl font-bold mb-2 bg-gradient-to-r from-emerald-600 to-blue-600 bg-clip-text text-transparent">
+            <h1 className="text-2xl sm:text-3xl font-bold mb-2 bg-gradient-to-r from-emerald-600 to-blue-600 bg-clip-text text-transparent">
               TruBridge Pulse
             </h1>
           </Link>
-          <h2 className="text-xl text-foreground">Create your account</h2>
-          <p className="text-muted-foreground mt-2">Join our community today</p>
+          <h2 className="text-lg sm:text-xl text-foreground">Create your account</h2>
+          <p className="text-muted-foreground mt-2 text-sm sm:text-base">Join our community today</p>
         </div>
 
         <Card className="fade-in shadow-lg border-0 bg-white/80 backdrop-blur-sm">
-          <CardHeader>
-            <CardTitle>Sign Up</CardTitle>
-            <CardDescription>Create your account to get started</CardDescription>
+          <CardHeader className="pb-4 sm:pb-6">
+            <CardTitle className="text-lg sm:text-xl">Sign Up</CardTitle>
+            <CardDescription className="text-sm sm:text-base">Create your account to get started</CardDescription>
           </CardHeader>
           <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-6">
+            <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
               {error && (
-                <div className="bg-destructive/10 border border-destructive/20 text-destructive px-4 py-3 rounded-md">
+                <div className="bg-destructive/10 border border-destructive/20 text-destructive px-3 sm:px-4 py-2 sm:py-3 rounded-md text-sm">
                   {error}
                 </div>
               )}
 
               <div className="space-y-2">
-                <Label htmlFor="name">Full Name *</Label>
+                <Label htmlFor="name" className="text-sm sm:text-base">Full Name *</Label>
                 <Input
                   id="name"
                   name="name"
@@ -145,11 +145,12 @@ export default function Signup() {
                   value={formData.name}
                   onChange={handleChange}
                   disabled={loading}
+                  className="h-10 sm:h-12 text-sm sm:text-base"
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="username">Username *</Label>
+                <Label htmlFor="username" className="text-sm sm:text-base">Username *</Label>
                 <Input
                   id="username"
                   name="username"
@@ -159,12 +160,13 @@ export default function Signup() {
                   value={formData.username}
                   onChange={handleChange}
                   disabled={loading}
+                  className="h-10 sm:h-12 text-sm sm:text-base"
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="age">Age *</Label>
+                  <Label htmlFor="age" className="text-sm sm:text-base">Age *</Label>
                   <Input
                     id="age"
                     name="age"
@@ -176,16 +178,17 @@ export default function Signup() {
                     value={formData.age}
                     onChange={handleChange}
                     disabled={loading}
+                    className="h-10 sm:h-12 text-sm sm:text-base"
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="gender">Gender *</Label>
+                  <Label htmlFor="gender" className="text-sm sm:text-base">Gender *</Label>
                   <select
                     id="gender"
                     name="gender"
                     required
-                    className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-base shadow-xs transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
+                    className="flex h-10 sm:h-12 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm sm:text-base shadow-xs transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
                     value={formData.gender}
                     onChange={handleChange}
                     disabled={loading}
@@ -199,7 +202,7 @@ export default function Signup() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="password">Password *</Label>
+                <Label htmlFor="password" className="text-sm sm:text-base">Password *</Label>
                 <Input
                   id="password"
                   name="password"
@@ -209,11 +212,12 @@ export default function Signup() {
                   value={formData.password}
                   onChange={handleChange}
                   disabled={loading}
+                  className="h-10 sm:h-12 text-sm sm:text-base"
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="confirmPassword">Confirm Password *</Label>
+                <Label htmlFor="confirmPassword" className="text-sm sm:text-base">Confirm Password *</Label>
                 <Input
                   id="confirmPassword"
                   name="confirmPassword"
@@ -223,13 +227,14 @@ export default function Signup() {
                   value={formData.confirmPassword}
                   onChange={handleChange}
                   disabled={loading}
+                  className="h-10 sm:h-12 text-sm sm:text-base"
                 />
               </div>
 
               <Button
                 type="submit"
                 disabled={loading}
-                className="w-full"
+                className="w-full h-10 sm:h-12 text-sm sm:text-base"
                 size="lg"
               >
                 {loading ? (
@@ -243,8 +248,8 @@ export default function Signup() {
               </Button>
             </form>
 
-            <div className="mt-6 text-center">
-              <p className="text-muted-foreground">
+            <div className="mt-4 sm:mt-6 text-center">
+              <p className="text-muted-foreground text-sm sm:text-base">
                 Already have an account?{' '}
                 <Link 
                   href="/auth/login" 
@@ -255,10 +260,10 @@ export default function Signup() {
               </p>
             </div>
 
-            <div className="mt-4 text-center">
+            <div className="mt-3 sm:mt-4 text-center">
               <Link 
                 href="/" 
-                className="text-muted-foreground hover:text-foreground text-sm transition-colors"
+                className="text-muted-foreground hover:text-foreground text-xs sm:text-sm transition-colors"
               >
                 ← Back to home
               </Link>

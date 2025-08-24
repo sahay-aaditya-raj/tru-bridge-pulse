@@ -122,27 +122,27 @@ export default function DonorSearchPublic({ embedded = false }) {
 
   const toggleAlgorithmBreakdown = (id) => { const s = new Set(expandedDonors); s.has(id) ? s.delete(id) : s.add(id); setExpandedDonors(s); };
 
-  const outerClass = embedded ? 'bg-gray-50 py-8' : 'min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8';
+  const outerClass = embedded ? 'bg-gray-50 py-6 sm:py-8' : 'min-h-screen bg-gray-50 py-8 sm:py-12 px-4 sm:px-6 lg:px-8';
   return (
     <div className={outerClass}>
       <div className="max-w-6xl mx-auto">
-        <div className="bg-white shadow-lg rounded-lg p-8 mb-8">
-          <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold text-gray-900">Search Organ Donors</h1>
-            <p className="mt-2 text-gray-600">Find nearby organ donors for emergency situations</p>
+        <div className="bg-white shadow-lg rounded-lg p-4 sm:p-6 md:p-8 mb-6 sm:mb-8">
+          <div className="text-center mb-6 sm:mb-8">
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Search Organ Donors</h1>
+            <p className="mt-2 text-gray-600 text-sm sm:text-base">Find nearby organ donors for emergency situations</p>
           </div>
 
           {message && (
-            <div className={`mb-6 p-4 rounded-md ${
+            <div className={`mb-4 sm:mb-6 p-3 sm:p-4 rounded-md text-sm sm:text-base ${
               messageType === 'success' ? 'bg-green-50 text-green-700 border border-green-200' :
               messageType === 'info' ? 'bg-blue-50 text-blue-700 border border-blue-200' : 'bg-red-50 text-red-700 border border-red-200'
             }`}>{message}</div>
           )}
 
-          <form onSubmit={handleSearch} className="space-y-6">
-            <div className="mb-6">
+          <form onSubmit={handleSearch} className="space-y-4 sm:space-y-6">
+            <div className="mb-4 sm:mb-6">
               <label className="block text-sm font-medium text-gray-700 mb-3">Search Method</label>
-              <div className="flex space-x-4">
+              <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
                 <label className="flex items-center">
                   <input type="radio" name="searchMode" value="coordinates" checked={searchMode === 'coordinates'} onChange={(e) => handleSearchModeChange(e.target.value)} className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300" />
                   <span className="ml-2 text-sm text-gray-700">Use Coordinates</span>

@@ -57,33 +57,33 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-cyan-50 via-blue-50 to-emerald-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-gradient-to-br from-cyan-50 via-blue-50 to-emerald-50 flex items-center justify-center py-8 sm:py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full">
-        <div className="text-center mb-8">
+        <div className="text-center mb-6 sm:mb-8">
           <Link href="/" className="text-foreground hover:text-primary transition-colors">
-            <h1 className="text-3xl font-bold mb-2 bg-gradient-to-r from-emerald-600 to-blue-600 bg-clip-text text-transparent">
+            <h1 className="text-2xl sm:text-3xl font-bold mb-2 bg-gradient-to-r from-emerald-600 to-blue-600 bg-clip-text text-transparent">
               TruBridge Pulse
             </h1>
           </Link>
-          <h2 className="text-xl text-foreground">Welcome back!</h2>
-          <p className="text-muted-foreground mt-2">Sign in to your account</p>
+          <h2 className="text-lg sm:text-xl text-foreground">Welcome back!</h2>
+          <p className="text-muted-foreground mt-2 text-sm sm:text-base">Sign in to your account</p>
         </div>
 
         <Card className="fade-in shadow-lg border-0 bg-white/80 backdrop-blur-sm">
-          <CardHeader>
-            <CardTitle>Sign In</CardTitle>
-            <CardDescription>Enter your credentials to access your account</CardDescription>
+          <CardHeader className="pb-4 sm:pb-6">
+            <CardTitle className="text-lg sm:text-xl">Sign In</CardTitle>
+            <CardDescription className="text-sm sm:text-base">Enter your credentials to access your account</CardDescription>
           </CardHeader>
           <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-6">
+            <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
               {error && (
-                <div className="bg-destructive/10 border border-destructive/20 text-destructive px-4 py-3 rounded-md">
+                <div className="bg-destructive/10 border border-destructive/20 text-destructive px-3 sm:px-4 py-2 sm:py-3 rounded-md text-sm">
                   {error}
                 </div>
               )}
 
               <div className="space-y-2">
-                <Label htmlFor="username">Username</Label>
+                <Label htmlFor="username" className="text-sm sm:text-base">Username</Label>
                 <Input
                   id="username"
                   name="username"
@@ -93,11 +93,12 @@ export default function Login() {
                   value={formData.username}
                   onChange={handleChange}
                   disabled={loading}
+                  className="h-10 sm:h-12 text-sm sm:text-base"
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
+                <Label htmlFor="password" className="text-sm sm:text-base">Password</Label>
                 <Input
                   id="password"
                   name="password"
@@ -107,13 +108,14 @@ export default function Login() {
                   value={formData.password}
                   onChange={handleChange}
                   disabled={loading}
+                  className="h-10 sm:h-12 text-sm sm:text-base"
                 />
               </div>
 
               <Button
                 type="submit"
                 disabled={loading}
-                className="w-full"
+                className="w-full h-10 sm:h-12 text-sm sm:text-base"
                 size="lg"
               >
                 {loading ? (
@@ -127,8 +129,8 @@ export default function Login() {
               </Button>
             </form>
 
-            <div className="mt-6 text-center">
-              <p className="text-muted-foreground">
+            <div className="mt-4 sm:mt-6 text-center">
+              <p className="text-muted-foreground text-sm sm:text-base">
                 Don&apos;t have an account?{' '}
                 <Link 
                   href="/auth/signup" 
@@ -139,10 +141,10 @@ export default function Login() {
               </p>
             </div>
 
-            <div className="mt-4 text-center">
+            <div className="mt-3 sm:mt-4 text-center">
               <Link 
                 href="/" 
-                className="text-muted-foreground hover:text-foreground text-sm transition-colors"
+                className="text-muted-foreground hover:text-foreground text-xs sm:text-sm transition-colors"
               >
                 ← Back to home
               </Link>

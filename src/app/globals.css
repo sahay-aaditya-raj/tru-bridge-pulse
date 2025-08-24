@@ -222,3 +222,158 @@
   transform: translateY(-4px);
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
 }
+
+/* Mobile and Tablet Responsive Utilities */
+.responsive-container {
+  padding-left: 1rem;
+  padding-right: 1rem;
+}
+
+@media (min-width: 640px) {
+  .responsive-container {
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .responsive-container {
+    padding-left: 2rem;
+    padding-right: 2rem;
+  }
+}
+
+/* Mobile-first button adjustments */
+.btn-mobile {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  font-size: 0.875rem;
+}
+
+@media (min-width: 640px) {
+  .btn-mobile {
+    width: auto;
+    padding: 0.5rem 1rem;
+    font-size: 1rem;
+  }
+}
+
+/* Mobile navigation improvements */
+.mobile-nav {
+  flex-direction: column;
+  gap: 0.5rem;
+  width: 100%;
+}
+
+@media (min-width: 768px) {
+  .mobile-nav {
+    flex-direction: row;
+    gap: 1rem;
+    width: auto;
+  }
+}
+
+/* Mobile text scaling */
+.text-responsive {
+  font-size: 1.125rem;
+  line-height: 1.75rem;
+}
+
+@media (min-width: 640px) {
+  .text-responsive {
+    font-size: 1.25rem;
+    line-height: 1.75rem;
+  }
+}
+
+@media (min-width: 768px) {
+  .text-responsive {
+    font-size: 1.5rem;
+    line-height: 2rem;
+  }
+}
+
+/* Mobile card spacing */
+.card-mobile {
+  margin-bottom: 1rem;
+}
+
+@media (min-width: 768px) {
+  .card-mobile {
+    margin-bottom: 1.5rem;
+  }
+}
+
+/* Grid responsive helpers */
+.grid-mobile-1 {
+  grid-template-columns: repeat(1, minmax(0, 1fr));
+}
+
+@media (min-width: 640px) {
+  .grid-mobile-1 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 768px) {
+  .grid-mobile-1 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1024px) {
+  .grid-mobile-1 {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+/* Touch-friendly interactive elements */
+@media (max-width: 768px) {
+  .touch-friendly {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  button, .btn-primary, .btn-secondary {
+    min-height: 44px;
+    padding: 0.75rem 1rem;
+  }
+  
+  input, textarea, select {
+    min-height: 44px;
+    padding: 0.75rem;
+    font-size: 16px; /* Prevents zoom on iOS */
+  }
+}
+
+/* Mobile spacing adjustments */
+@media (max-width: 768px) {
+  .section-mobile {
+    padding-top: 2rem;
+    padding-bottom: 2rem;
+  }
+  
+  .hero-mobile {
+    padding-top: 3rem;
+    padding-bottom: 3rem;
+  }
+  
+  .card {
+    padding: 1rem;
+  }
+  
+  .text-3xl {
+    font-size: 1.875rem;
+    line-height: 2.25rem;
+  }
+  
+  .text-4xl {
+    font-size: 2.25rem;
+    line-height: 2.5rem;
+  }
+  
+  .text-6xl {
+    font-size: 3rem;
+    line-height: 1;
+  }
+}

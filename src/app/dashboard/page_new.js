@@ -32,8 +32,52 @@ export default function Dashboard() {
     return null;
   }
 
+  const handleLogout = async () => {
+    await logout();
+    router.push('/');
+  };
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-cyan-50 via-blue-50 to-emerald-50 pt-4">
+    <div className="min-h-screen bg-gradient-to-br from-cyan-50 via-blue-50 to-emerald-50">
+      {/* Header */}
+      <header className="bg-gradient-to-r from-emerald-400 via-cyan-400 to-blue-400 shadow-lg">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex flex-col sm:flex-row justify-between items-center py-4 sm:py-6 gap-4 sm:gap-0">
+            <Link href="/" className="text-white hover:text-blue-100 transition-colors">
+              <h1 className="text-xl sm:text-2xl font-bold">TruBridge Pulse</h1>
+            </Link>
+            <nav className="flex flex-col sm:flex-row items-center gap-2 sm:gap-4 w-full sm:w-auto">
+              <div className="flex flex-wrap justify-center sm:justify-start gap-2">
+                <Button
+                  asChild
+                  variant="ghost"
+                  size="sm"
+                  className="text-white hover:text-blue-100 hover:bg-white/20 text-xs sm:text-sm"
+                >
+                  <Link href="/">Home</Link>
+                </Button>
+                <Button
+                  asChild
+                  variant="ghost"
+                  size="sm"
+                  className="text-white hover:text-blue-100 hover:bg-white/20 text-xs sm:text-sm"
+                >
+                  <Link href="/profile">Profile</Link>
+                </Button>
+                <Button
+                  onClick={handleLogout}
+                  variant="outline"
+                  size="sm"
+                  className="bg-white text-red-600 hover:bg-red-50 border-white text-xs sm:text-sm"
+                >
+                  Logout
+                </Button>
+              </div>
+            </nav>
+          </div>
+        </div>
+      </header>
+
       {/* Main Content */}
       <main className="max-w-7xl mx-auto py-8 sm:py-12 px-4 sm:px-6 lg:px-8">
         <div className="fade-in">

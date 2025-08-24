@@ -38,81 +38,47 @@ export default function Profile() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-cyan-50 via-blue-50 to-emerald-50">
-      {/* Header */}
-      <header className="bg-gradient-to-r from-emerald-400 via-cyan-400 to-blue-400 shadow-lg">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-6">
-            <Link href="/" className="text-white hover:text-blue-100 transition-colors">
-              <h1 className="text-2xl font-bold">TruBridge Pulse</h1>
-            </Link>
-            <nav className="flex items-center space-x-4">
-              <Button
-                asChild
-                variant="ghost"
-                className="text-white hover:text-blue-100 hover:bg-white/20"
-              >
-                <Link href="/">Home</Link>
-              </Button>
-              <Button
-                asChild
-                variant="ghost"
-                className="text-white hover:text-blue-100 hover:bg-white/20"
-              >
-                <Link href="/dashboard">Dashboard</Link>
-              </Button>
-              <Button
-                onClick={handleLogout}
-                variant="outline"
-                className="bg-white text-red-600 hover:bg-red-50 border-white"
-              >
-                Logout
-              </Button>
-            </nav>
-          </div>
-        </div>
-      </header>
-
+    <div className="min-h-screen bg-gradient-to-br from-cyan-50 via-blue-50 to-emerald-50 pt-4">
       {/* Main Content */}
-      <main className="max-w-4xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
+      <main className="max-w-4xl mx-auto py-8 sm:py-12 px-4 sm:px-6 lg:px-8">
         <div className="fade-in">
           {/* Profile Header */}
-          <div className="text-center mb-8">
-            <div className="w-24 h-24 bg-gradient-to-r from-emerald-400 to-cyan-400 rounded-full flex items-center justify-center mx-auto mb-4">
-              <span className="text-3xl font-bold text-white">
+          <div className="text-center mb-6 sm:mb-8">
+            <div className="w-20 h-20 sm:w-24 sm:h-24 bg-gradient-to-r from-emerald-400 to-cyan-400 rounded-full flex items-center justify-center mx-auto mb-3 sm:mb-4">
+              <span className="text-2xl sm:text-3xl font-bold text-white">
                 {user.name?.charAt(0).toUpperCase()}
               </span>
             </div>
-            <h2 className="text-3xl font-bold bg-gradient-to-r from-emerald-600 to-blue-600 bg-clip-text text-transparent mb-2">
+            <h2 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-emerald-600 to-blue-600 bg-clip-text text-transparent mb-2">
               {user.name}
             </h2>
-            <p className="text-muted-foreground">@{user.username}</p>
+            <p className="text-muted-foreground text-sm sm:text-base">@{user.username}</p>
           </div>
 
           {/* Profile Information */}
-          <div className="grid md:grid-cols-2 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8">
             {/* Personal Information */}
             <Card>
               <CardHeader>
-                <CardTitle className="bg-gradient-to-r from-emerald-600 to-blue-600 bg-clip-text text-transparent">
+                <CardTitle className="bg-gradient-to-r from-emerald-600 to-blue-600 bg-clip-text text-transparent text-lg sm:text-xl">
                   Personal Information
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="flex justify-between items-center py-3 border-b">
-                  <span className="font-medium text-muted-foreground">Full Name</span>
-                  <span>{user.name}</span>
+                <div className="flex justify-between items-center py-2 sm:py-3 border-b">
+                  <span className="font-medium text-muted-foreground text-sm sm:text-base">Full Name</span>
+                  <span className="text-sm sm:text-base">{user.name}</span>
                 </div>
-                <div className="flex justify-between items-center py-3 border-b">
-                  <span className="font-medium text-muted-foreground">Username</span>
-                  <span>@{user.username}</span>
+                <div className="flex justify-between items-center py-2 sm:py-3 border-b">
+                  <span className="font-medium text-muted-foreground text-sm sm:text-base">Username</span>
+                  <span className="text-sm sm:text-base">@{user.username}</span>
                 </div>
-                <div className="flex justify-between items-center py-3 border-b">
-                  <span className="font-medium text-muted-foreground">Age</span>
-                  <span>{user.age} years old</span>
+                <div className="flex justify-between items-center py-2 sm:py-3 border-b">
+                  <span className="font-medium text-muted-foreground text-sm sm:text-base">Age</span>
+                  <span className="text-sm sm:text-base">{user.age} years old</span>
                 </div>
-                <div className="flex justify-between items-center py-3">
-                  <span className="font-medium text-muted-foreground">Gender</span>
+                <div className="flex justify-between items-center py-2 sm:py-3">
+                  <span className="font-medium text-muted-foreground text-sm sm:text-base">Gender</span>
                   <span className="capitalize">{user.gender}</span>
                 </div>
               </CardContent>

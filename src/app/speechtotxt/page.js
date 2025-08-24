@@ -4,7 +4,6 @@ import { useEffect, useRef, useState } from 'react';
 import { createClient, LiveTranscriptionEvents } from '@deepgram/sdk';
 import { useAuth } from '@/hooks/useAuth';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import SiriAnimation from '../chat_avatar/line_animation';
@@ -29,11 +28,6 @@ export default function LiveTranscription() {
       router.push('/auth/login');
     }
   }, [isAuthenticated, loading, router]);
-
-  const handleLogout = async () => {
-    await logout();
-    router.push('/');
-  };
 
   // Send introduction message when WebSocket connects
   const sendIntroductionMessage = () => {
@@ -682,71 +676,30 @@ export default function LiveTranscription() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-cyan-50 via-blue-50 to-emerald-50">
-      {/* Header */}
-      <header className="bg-gradient-to-r from-emerald-400 via-cyan-400 to-blue-400 shadow-lg">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-6">
-            <Link href="/" className="text-white hover:text-blue-100 transition-colors">
-              <h1 className="text-2xl font-bold">TruBridge Pulse</h1>
-            </Link>
-            <nav className="flex items-center space-x-4">
-              <Button
-                asChild
-                variant="ghost"
-                className="text-white hover:text-blue-100 hover:bg-white/20"
-              >
-                <Link href="/">Home</Link>
-              </Button>
-              <Button
-                asChild
-                variant="ghost"
-                className="text-white hover:text-blue-100 hover:bg-white/20"
-              >
-                <Link href="/dashboard">Dashboard</Link>
-              </Button>
-              <Button
-                asChild
-                variant="ghost"
-                className="text-white hover:text-blue-100 hover:bg-white/20"
-              >
-                <Link href="/profile">Profile</Link>
-              </Button>
-              <Button
-                onClick={handleLogout}
-                variant="outline"
-                className="bg-white text-red-600 hover:bg-red-50 border-white"
-              >
-                Logout
-              </Button>
-            </nav>
-          </div>
-        </div>
-      </header>
-
+    <div className="min-h-screen bg-gradient-to-br from-cyan-50 via-blue-50 to-emerald-50 pt-4">
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
+      <main className="max-w-7xl mx-auto py-8 sm:py-12 px-4 sm:px-6 lg:px-8">
         <div className="fade-in">
           {/* Welcome Section */}
-          <div className="mb-8">
-            <h2 className="text-3xl font-bold bg-gradient-to-r from-emerald-600 to-blue-600 bg-clip-text text-transparent mb-2">
+          <div className="mb-6 sm:mb-8">
+            <h2 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-emerald-600 to-blue-600 bg-clip-text text-transparent mb-2">
               Live Speech to Speech Chat
             </h2>
-            <p className="text-muted-foreground">
+            <p className="text-muted-foreground text-sm sm:text-base">
               Welcome, {user.name}! Start a conversation with our AI assistant.
             </p>
           </div>
 
           {/* Controls Section */}
-          <Card className="mb-8">
+          <Card className="mb-6 sm:mb-8">
             <CardHeader>
-              <CardTitle>Voice Interaction Controls</CardTitle>
-              <CardDescription>
+              <CardTitle className="text-lg sm:text-xl">Voice Interaction Controls</CardTitle>
+              <CardDescription className="text-sm sm:text-base">
                 Start your conversation with the AI assistant
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="flex flex-wrap items-center gap-3">
+              <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                 <Button
                   onClick={startTranscription}
                   disabled={isTranscribing}
