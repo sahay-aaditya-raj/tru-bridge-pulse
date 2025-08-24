@@ -4,6 +4,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import { Button } from '@/components/ui/button';
+import DonorSearchPublic from './donor-search-public/publicView';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
 export default function Home() {
@@ -107,6 +108,13 @@ export default function Home() {
                 >
                   Sign In
                 </Button>
+                <Button
+                  onClick={() => router.push('/donor-search-public')}
+                  size="lg"
+                  className="text-lg px-8 py-4 bg-white text-primary hover:bg-gray-50"
+                >
+                  🔎 Search Organ Donors
+                </Button>
               </div>
             ) : (
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
@@ -124,6 +132,13 @@ export default function Home() {
                   className="text-lg px-8 py-4 bg-white/20 text-white hover:bg-white/30 border-white/30"
                 >
                   Go to Dashboard
+                </Button>
+                <Button
+                  onClick={() => router.push('/donor-search-public')}
+                  size="lg"
+                  className="text-lg px-8 py-4 bg-white text-primary hover:bg-gray-50"
+                >
+                  🔎 Search Organ Donors
                 </Button>
                 <Button
                   onClick={() => router.push('/profile')}
@@ -240,6 +255,19 @@ export default function Home() {
           </div>
         </section>
       )}
+
+      {/* Quick Organ Donor Search (Public) */}
+      <section className="py-16 bg-background">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-8">
+            <h3 className="text-3xl font-bold bg-gradient-to-r from-emerald-600 to-blue-600 bg-clip-text text-transparent">
+              Quick Organ Donor Search
+            </h3>
+            <p className="text-muted-foreground">Search is public and does not require login</p>
+          </div>
+          <DonorSearchPublic embedded />
+        </div>
+      </section>
 
       {/* Footer */}
       <footer className="bg-gray-900 text-white py-12">

@@ -136,23 +136,14 @@ export async function GET(request) {
   try {
     await connectDB();
 
-    // Get the token from cookies
+    // Optional authentication: if a token exists, verify; otherwise continue as public access
     const token = request.cookies.get('token')?.value;
-    
-    if (!token) {
-      return NextResponse.json(
-        { success: false, message: 'Authentication required' },
-        { status: 401 }
-      );
-    }
-
-    try {
-      jwt.verify(token, JWT_SECRET);
-    } catch (error) {
-      return NextResponse.json(
-        { success: false, message: 'Invalid token' },
-        { status: 401 }
-      );
+    if (token) {
+      try {
+        jwt.verify(token, JWT_SECRET);
+      } catch (error) {
+        // If token is invalid, treat as unauthenticated but continue
+      }
     }
 
     const { searchParams } = new URL(request.url);
@@ -207,7 +198,7 @@ export async function GET(request) {
 
     let processedDonors;
 
-    if (isCompatibilitySearch) {
+  if (isCompatibilitySearch) {
       // Compatibility-based search with algorithm
       const searchCriteria = {
         bloodGroup,
@@ -239,7 +230,9 @@ export async function GET(request) {
             isCompatible: compatibilityScore > 0,
             searchMode: 'compatibility'
           };
-        })
+  })
+  // Exclude incompatible donors (score === 0)
+  .filter(d => d.compatibilityScore > 0)
         .sort((a, b) => {
           // Sort by compatibility score first (descending), then by distance (ascending)
           if (b.compatibilityScore !== a.compatibilityScore) {
@@ -249,7 +242,7 @@ export async function GET(request) {
         })
         .slice(0, limit);
 
-    } else {
+  } else {
       // General search - show all donors with basic compatibility info if criteria provided
       processedDonors = allDonors
         .map(donor => {
@@ -290,6 +283,8 @@ export async function GET(request) {
             })
           };
         })
+        // If user provided full details (bloodGroup & organType), omit incompatible donors
+        .filter(d => !bloodGroup || !organType || (d.compatibilityScore && d.compatibilityScore > 0))
         .sort((a, b) => a.distance - b.distance) // Sort by distance for general search
         .slice(0, limit);
     }

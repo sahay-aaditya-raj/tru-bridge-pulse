@@ -223,15 +223,8 @@ export default function Dashboard() {
                       View Profile
                     </Link>
                   </Button>
-                  <Button variant="outline" className="w-full">
-                    Account Settings
-                  </Button>
-                  <Button variant="outline" className="w-full">
-                    Help & Support
-                  </Button>
                 </CardContent>
               </Card>
-
               <Card>
                 <CardHeader>
                   <CardTitle className="bg-gradient-to-r from-emerald-600 to-blue-600 bg-clip-text text-transparent">
