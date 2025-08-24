@@ -250,7 +250,7 @@ async def start_websocket_server():
 
 # Helper async function to start FastAPI server
 async def start_fastapi_server():
-    config = uvicorn.Config(app, host="127.0.0.1", port=5001, log_level="info")
+    config = uvicorn.Config(app, host="127.0.0.1", port=5000, log_level="info")
     server = uvicorn.Server(config)
     await server.serve()
 
