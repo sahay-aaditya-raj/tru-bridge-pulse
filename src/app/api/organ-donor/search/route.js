@@ -2,8 +2,81 @@ import { NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import OrganDonor from '@/models/OrganDonor';
 import jwt from 'jsonwebtoken';
+import { 
+  isBloodCompatible, 
+  getCompatibilityLevel, 
+  calculateDistance 
+} from '@/lib/organMatchingUtils';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-fallback-secret-key-change-in-production';
+
+// Calculate compatibility score between donor and search criteria
+function getCompatibilityScore(donor, searchParams) {
+  const { bloodGroup: recipientBG, organType: requiredOrgan, age: recipientAge, urgency = 3 } = searchParams;
+  
+  // Check blood compatibility first
+  if (!isBloodCompatible(donor.bloodGroup, recipientBG)) return 0;
+  
+  // Check if donor has the required organ
+  if (!donor.organType.includes(requiredOrgan)) return 0;
+
+  let score = 0;
+  
+  // Base score for blood compatibility
+  score += 50;
+  
+  // Organ type exact match bonus
+  if (donor.organType.includes(requiredOrgan)) score += 30;
+  
+  // Age compatibility (closer ages get higher scores)
+  if (recipientAge) {
+    const ageDifference = Math.abs(donor.age - recipientAge);
+    score += Math.max(0, 20 - ageDifference);
+  }
+  
+  // Urgency factor (higher urgency increases score)
+  score += urgency * 5;
+  
+  // Perfect blood type match bonus (exact same blood group)
+  if (donor.bloodGroup === recipientBG) score += 10;
+  
+  return score;
+}
+
+// Get compatibility status with color coding for UI
+function getCompatibilityStatus(score) {
+  if (score === 0) {
+    return {
+      status: 'Not Compatible',
+      level: 'Incompatible',
+      color: 'red'
+    };
+  } else if (score >= 90) {
+    return {
+      status: 'Fully Compatible',
+      level: 'Excellent Match',
+      color: 'green'
+    };
+  } else if (score >= 70) {
+    return {
+      status: 'Highly Compatible',
+      level: 'Very Good Match',
+      color: 'green'
+    };
+  } else if (score >= 50) {
+    return {
+      status: 'Compatible',
+      level: 'Good Match',
+      color: 'yellow'
+    };
+  } else {
+    return {
+      status: 'Low Compatibility',
+      level: 'Fair Match',
+      color: 'yellow'
+    };
+  }
+}
 
 export async function GET(request) {
   try {
@@ -34,6 +107,8 @@ export async function GET(request) {
     const radius = parseInt(searchParams.get('radius')) || 50; // Default 50km radius
     const bloodGroup = searchParams.get('bloodGroup');
     const organType = searchParams.get('organType');
+    const age = parseInt(searchParams.get('age'));
+    const urgency = parseInt(searchParams.get('urgency')) || 3; // Default urgency level
     const limit = parseInt(searchParams.get('limit')) || 20;
 
     if (!lat || !lng) {
@@ -43,7 +118,11 @@ export async function GET(request) {
       );
     }
 
-    // Build query
+    // Determine if this is a general search or compatibility search
+    const isCompatibilitySearch = bloodGroup && organType;
+    const isGeneralSearch = !isCompatibilitySearch;
+
+    // Build base query for location
     const query = {
       isActive: true,
       coordinates: {
@@ -57,46 +136,141 @@ export async function GET(request) {
       }
     };
 
-    // Add blood group filter if provided
-    if (bloodGroup) {
-      query.bloodGroup = bloodGroup;
+    // For general search, add optional filters if provided
+    if (isGeneralSearch) {
+      if (bloodGroup) {
+        query.bloodGroup = bloodGroup;
+      }
+      if (organType) {
+        query.organType = { $in: [organType] };
+      }
     }
 
-    // Add organ type filter if provided
-    if (organType) {
-      query.organType = { $in: [organType] };
-    }
-
-    const donors = await OrganDonor.find(query)
+    // Get donors within radius
+    const allDonors = await OrganDonor.find(query)
       .select('name email contactNumber location bloodGroup organType age registrationDate coordinates')
-      .limit(limit)
       .lean();
 
-    // Calculate distance for each donor
-    const donorsWithDistance = donors.map(donor => {
-      const distance = calculateDistance(
-        lat, lng,
-        donor.coordinates.coordinates[1], // latitude
-        donor.coordinates.coordinates[0]  // longitude
-      );
-      
-      return {
-        ...donor,
-        distance: Math.round(distance * 100) / 100 // Round to 2 decimal places
+    let processedDonors;
+
+    if (isCompatibilitySearch) {
+      // Compatibility-based search with algorithm
+      const searchCriteria = {
+        bloodGroup,
+        organType,
+        age,
+        urgency
       };
-    });
+
+      processedDonors = allDonors
+        .map(donor => {
+          const compatibilityScore = getCompatibilityScore(donor, searchCriteria);
+          const distance = calculateDistance(
+            lat, lng,
+            donor.coordinates.coordinates[1], // latitude
+            donor.coordinates.coordinates[0]  // longitude
+          );
+          
+          const compatibilityStatus = getCompatibilityStatus(compatibilityScore);
+          
+          return {
+            ...donor,
+            distance: Math.round(distance * 100) / 100,
+            compatibilityScore,
+            compatibilityStatus: compatibilityStatus.status,
+            compatibilityLevel: compatibilityStatus.level,
+            compatibilityColor: compatibilityStatus.color,
+            isCompatible: compatibilityScore > 0,
+            searchMode: 'compatibility'
+          };
+        })
+        .sort((a, b) => {
+          // Sort by compatibility score first (descending), then by distance (ascending)
+          if (b.compatibilityScore !== a.compatibilityScore) {
+            return b.compatibilityScore - a.compatibilityScore;
+          }
+          return a.distance - b.distance;
+        })
+        .slice(0, limit);
+
+    } else {
+      // General search - show all donors with basic compatibility info if criteria provided
+      processedDonors = allDonors
+        .map(donor => {
+          const distance = calculateDistance(
+            lat, lng,
+            donor.coordinates.coordinates[1], // latitude
+            donor.coordinates.coordinates[0]  // longitude
+          );
+
+          let compatibilityInfo = null;
+          
+          // If bloodGroup and organType are provided in general search, show basic compatibility
+          if (bloodGroup && organType) {
+            const compatibilityScore = getCompatibilityScore(donor, { bloodGroup, organType, age, urgency });
+            const compatibilityStatus = getCompatibilityStatus(compatibilityScore);
+            
+            compatibilityInfo = {
+              compatibilityScore,
+              compatibilityStatus: compatibilityStatus.status,
+              compatibilityLevel: compatibilityStatus.level,
+              compatibilityColor: compatibilityStatus.color,
+              isCompatible: compatibilityScore > 0
+            };
+          }
+          
+          return {
+            ...donor,
+            distance: Math.round(distance * 100) / 100,
+            searchMode: 'general',
+            ...(compatibilityInfo || {
+              compatibilityStatus: 'Not Assessed',
+              compatibilityLevel: 'General Search',
+              compatibilityColor: 'gray',
+              isCompatible: null,
+              compatibilityScore: null
+            })
+          };
+        })
+        .sort((a, b) => a.distance - b.distance) // Sort by distance for general search
+        .slice(0, limit);
+    }
 
     return NextResponse.json(
       { 
         success: true, 
-        data: donorsWithDistance,
-        count: donorsWithDistance.length,
+        data: processedDonors,
+        count: processedDonors.length,
+        totalScanned: allDonors.length,
+        searchMode: isCompatibilitySearch ? 'compatibility' : 'general',
         searchParams: {
           location: { lat, lng },
           radius,
-          bloodGroup,
-          organType
-        }
+          bloodGroup: bloodGroup || null,
+          organType: organType || null,
+          age: age || null,
+          urgency: urgency || null
+        },
+        ...(isCompatibilitySearch && {
+          compatibilityInfo: {
+            message: 'Results sorted by compatibility score and distance',
+            scoringCriteria: {
+              bloodCompatibility: '50 points',
+              organMatch: '30 points',
+              ageCompatibility: 'up to 20 points',
+              urgencyBonus: `${urgency * 5} points`,
+              perfectBloodMatch: '10 points bonus'
+            }
+          }
+        }),
+        ...(isGeneralSearch && {
+          generalSearchInfo: {
+            message: bloodGroup && organType 
+              ? 'General search with compatibility indicators shown'
+              : 'General location-based search - provide blood group and organ type for compatibility analysis',
+            sortedBy: 'distance'
+          }
+        })
       },
       { status: 200 }
     );
@@ -110,20 +284,4 @@ export async function GET(request) {
   }
 }
 
-// Helper function to calculate distance between two points using Haversine formula
-function calculateDistance(lat1, lon1, lat2, lon2) {
-  const R = 6371; // Radius of the Earth in kilometers
-  const dLat = deg2rad(lat2 - lat1);
-  const dLon = deg2rad(lon2 - lon1);
-  const a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) *
-    Math.sin(dLon / 2) * Math.sin(dLon / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  const d = R * c; // Distance in kilometers
-  return d;
-}
 
-function deg2rad(deg) {
-  return deg * (Math.PI / 180);
-}
